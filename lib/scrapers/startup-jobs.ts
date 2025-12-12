@@ -1,0 +1,85 @@
+import { BaseScraper } from './base-scraper'
+import type { ScraperResult, JobData } from './types'
+
+export class StartupJobsScraper extends BaseScraper {
+  name = 'Startup Jobs'
+  sourceUrl = 'https://startup.jobs'
+
+  async scrapeInternal(): Promise<ScraperResult> {
+    if (!this.page) throw new Error('Page not initialized')
+
+    try {
+      await this.page.goto(this.sourceUrl, { waitUntil: 'networkidle', timeout: 30000 })
+      await this.page.waitForTimeout(3000)
+
+      const jobs: JobData[] = []
+      let jobElements: any[] = []
+
+      // Try to find job listings
+      try {
+        const links = await this.page.$$eval('a[href*="/job"], a[href*="/jobs"]', (links) => {
+          return links
+            .filter(link => {
+              const text = link.textContent?.trim() || ''
+              return text.length > 10 && !text.toLowerCase().includes('login')
+            })
+            .slice(0, 50)
+            .map((link) => {
+              const text = link.textContent?.trim() || ''
+              const href = link.getAttribute('href') || ''
+              const parent = link.closest('div, li, article')
+              
+              return {
+                title: text || parent?.querySelector('h2, h3')?.textContent?.trim() || '',
+                company: parent?.querySelector('[class*="company"]')?.textContent?.trim() || '',
+                link: href,
+                location: parent?.querySelector('[class*="location"]')?.textContent?.trim() || 'Remote',
+                description: '',
+              }
+            })
+        })
+        jobElements = links
+        console.log(`[${this.name}] Found ${links.length} jobs`)
+      } catch (e) {
+        console.log(`[${this.name}] Error: ${e}`)
+      }
+
+      for (const job of jobElements) {
+        if (!job.title || job.title.length < 5) continue
+
+        const fullLink = job.link.startsWith('http') ? job.link : `${this.sourceUrl}${job.link}`
+
+        const jobData: JobData = {
+          company_name: this.normalizeText(job.company) || 'Unknown',
+          industry: null,
+          location: this.normalizeText(job.location) || 'Remote',
+          funding_stage: null,
+          role_title: this.normalizeText(job.title),
+          role_type: 'Full-time',
+          role_level: this.extractRoleLevel(job.title, job.description),
+          work_mode: job.location.toLowerCase().includes('remote') ? 'Remote' : 'Hybrid',
+          compensation: 'Not specified',
+          equity: null,
+          posting_date: new Date(),
+          closing_date: null,
+          company_description: this.normalizeText(job.description),
+          application_link: fullLink,
+          source_website: this.sourceUrl,
+          is_active: true,
+        }
+
+        jobs.push(jobData)
+      }
+
+      return { success: true, jobs, source: this.name }
+    } catch (error) {
+      return {
+        success: false,
+        jobs: [],
+        error: error instanceof Error ? error.message : 'Unknown error',
+        source: this.name,
+      }
+    }
+  }
+}
+

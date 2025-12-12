@@ -1,0 +1,39 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Job {
+  id                String    @id @default(uuid())
+  company_name      String
+  industry          String?
+  location          String
+  funding_stage     String?
+  role_title        String
+  role_type         String    // e.g., Full-time, Part-time, Contract
+  role_level        String    // e.g., Entry, Mid, Senior, Lead
+  work_mode         String    // Onsite, Hybrid, Remote
+  compensation      String
+  equity            String?
+  posting_date      DateTime  @default(now())
+  closing_date      DateTime?
+  company_description String
+  application_link  String    @unique
+  source_website    String
+  is_active         Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([application_link])
+  @@index([is_active])
+  @@index([source_website])
+  @@index([posting_date])
+}
+

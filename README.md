@@ -38,7 +38,7 @@ npx playwright install chromium
 The project is configured to use SQLite for local development by default. The `.env` file is already created with:
 
 ```
-DATABASE_URL="file:./dev.db"
+DATABASE_URL="file:./prisma/dev.db"
 ```
 
 Generate Prisma Client and create the database:

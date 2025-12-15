@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, RefreshCw } from 'lucide-react'
 
 interface Job {
   id: string
@@ -42,6 +42,7 @@ interface Job {
 export default function Dashboard() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
+  const [scraping, setScraping] = useState(false)
   const [workModeFilter, setWorkModeFilter] = useState<string>('all')
   const [roleLevelFilter, setRoleLevelFilter] = useState<string>('all')
   const [page, setPage] = useState(1)
@@ -77,6 +78,29 @@ export default function Dashboard() {
       setLoading(false)
     }
   }, [workModeFilter, roleLevelFilter, page])
+
+  const triggerScrape = async () => {
+    setScraping(true)
+    try {
+      const response = await fetch('/api/scrape', {
+        method: 'POST',
+      })
+      const data = await response.json()
+      
+      if (data.status === 'started') {
+        // Wait a bit then refresh jobs
+        setTimeout(() => {
+          fetchJobs()
+          setScraping(false)
+        }, 5000)
+      } else {
+        setScraping(false)
+      }
+    } catch (error) {
+      console.error('Error triggering scrape:', error)
+      setScraping(false)
+    }
+  }
 
   useEffect(() => {
     fetchJobs()
@@ -174,13 +198,23 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto py-10 px-4 max-w-7xl">
-        <div className="mb-10">
-          <h1 className="text-5xl font-bold mb-3 bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
-            Job Aggregation Dashboard
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            Aggregated startup and VC job listings from 30+ sources
-          </p>
+        <div className="mb-10 flex items-start justify-between">
+          <div>
+            <h1 className="text-5xl font-bold mb-3 bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
+              Job Aggregation Dashboard
+            </h1>
+            <p className="text-muted-foreground text-lg">
+              Aggregated startup and VC job listings from 30+ sources
+            </p>
+          </div>
+          <Button
+            onClick={triggerScrape}
+            disabled={scraping}
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${scraping ? 'animate-spin' : ''}`} />
+            {scraping ? 'Scraping...' : 'Run Scrapers'}
+          </Button>
         </div>
 
         {/* Filters */}

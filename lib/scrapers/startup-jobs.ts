@@ -49,8 +49,19 @@ export class StartupJobsScraper extends BaseScraper {
 
         const fullLink = job.link.startsWith('http') ? job.link : `${this.sourceUrl}${job.link}`
 
+        // Extract proper company name
+        let companyName = this.normalizeText(job.company)
+        if (!companyName || companyName.toLowerCase() === 'unknown' || companyName.length < 2) {
+          companyName = this.extractCompanyName(job.title, fullLink)
+        }
+
+        // Validate the job before adding
+        if (!this.isValidJob(job.title, companyName, fullLink)) {
+          continue
+        }
+
         const jobData: JobData = {
-          company_name: this.normalizeText(job.company) || 'Unknown',
+          company_name: companyName,
           industry: null,
           location: this.normalizeText(job.location) || 'Remote',
           funding_stage: null,

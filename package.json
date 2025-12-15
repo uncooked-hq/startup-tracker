@@ -11,6 +11,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "tsx lib/seed.ts",
+    "db:cleanup": "tsx lib/cleanup-invalid-jobs.ts",
     "scrape": "tsx lib/scrapers/runner.ts"
   },
   "dependencies": {

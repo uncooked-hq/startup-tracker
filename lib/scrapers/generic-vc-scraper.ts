@@ -50,18 +50,84 @@ export class GenericVCScraper extends BaseScraper {
                 .slice(0, 50)
                 .map((el) => {
                   const linkEl = el.querySelector('a[href*="/job"], a[href*="/jobs"]') || el.closest('a')
-                  const titleEl = el.querySelector('h2, h3, h4, [class*="title"]') || linkEl
-                  const companyEl = el.querySelector('[class*="company"], [class*="name"]')
-                  const locationEl = el.querySelector('[class*="location"], [class*="remote"]')
+                  
+                  // Try multiple strategies to get the full title
+                  let titleEl = el.querySelector('h2, h3, h4, [class*="title"], [class*="Title"]')
+                  if (!titleEl && linkEl) {
+                    titleEl = linkEl
+                  }
+                  
+                  // Get full text - try innerText first (respects visibility), then textContent
+                  let title = ''
+                  if (titleEl) {
+                    title = (titleEl as HTMLElement).innerText?.trim() || titleEl.textContent?.trim() || ''
+                    
+                    // If title seems truncated (starts with common prefixes), try getting from parent
+                    if (title.length < 15 && (title.toLowerCase().startsWith('full') || title.toLowerCase().startsWith('senior'))) {
+                      const parentText = el.textContent?.trim() || ''
+                      // Try to extract full title from parent text
+                      const titleMatch = parentText.match(/(Full[-\s]?Stack|Senior|Junior|Lead|Staff|Principal)\s+[^.]{10,}/i)
+                      if (titleMatch) {
+                        title = titleMatch[0].trim()
+                      }
+                    }
+                  }
+                  
+                  // Clean up title - remove common suffixes/prefixes that get concatenated
+                  title = title
+                    .replace(/\s*\.\s*Privacy Notice.*$/i, '')
+                    .replace(/\s*\.\s*Privacy.*$/i, '')
+                    .replace(/\s*Portfolio job opportunities\.?\s*/i, '')
+                    .replace(/\s*Your career\.?\s*/i, '')
+                    .replace(/\s*\d+[,.]?\d*\s+opportunities?\.?\s*/i, '')
+                    .replace(/\s*Build the future.*$/i, '')
+                    .replace(/\s*from here.*$/i, '')
+                    .trim()
+                  
+                  const companyEl = el.querySelector('[class*="company"], [class*="Company"], [class*="name"]')
+                  const locationEl = el.querySelector('[class*="location"], [class*="Location"], [class*="remote"]')
+                  
+                  const company = companyEl?.textContent?.trim() || ''
+                  const link = linkEl?.getAttribute('href') || ''
+                  
+                  // Filter out category headers and navigation
+                  const titleLower = title.toLowerCase()
+                  if (
+                    !title ||
+                    title.length < 10 ||
+                    title.split(/\s+/).filter(w => w.length > 0).length < 2 ||
+                    titleLower.includes(' jobs') ||
+                    titleLower.includes('jobs ') ||
+                    titleLower === 'jobs' ||
+                    titleLower.includes('create profile') ||
+                    titleLower.includes('sign ') ||
+                    titleLower.includes('portfolio job') ||
+                    titleLower.includes('privacy notice') ||
+                    titleLower.includes('your career') ||
+                    titleLower.includes('opportunities') ||
+                    titleLower.includes('build the future') ||
+                    titleLower.match(/^\d+[,.]?\d*\s+opportunities?/i) ||
+                    titleLower.match(/^(freelance|contract|part.?time|full.?time)\s+(developer|designer|engineer|jobs?)$/i) ||
+                    titleLower.match(/^(engineering|product|design|sales|marketing|operations|data|customer support)\s+jobs?$/i) ||
+                    titleLower.endsWith('›') ||
+                    titleLower.endsWith('→') ||
+                    titleLower === 'full' ||
+                    titleLower === 'senior' ||
+                    titleLower === 'junior' ||
+                    titleLower === 'lead'
+                  ) {
+                    return null
+                  }
 
                   return {
-                    title: titleEl?.textContent?.trim() || '',
-                    company: companyEl?.textContent?.trim() || '',
-                    link: linkEl?.getAttribute('href') || '',
+                    title,
+                    company,
+                    link,
                     location: locationEl?.textContent?.trim() || 'Remote',
                     description: el.textContent?.trim() || '',
                   }
                 })
+                .filter(item => item !== null && item.title && item.title.length >= 10 && item.title.split(/\s+/).length >= 2)
             })
             
             if (elements.length > 0) {
@@ -86,8 +152,48 @@ export class GenericVCScraper extends BaseScraper {
               })
               .slice(0, 50)
               .map((link) => {
-                const text = link.textContent?.trim() || ''
+                let text = link.textContent?.trim() || ''
                 const href = link.getAttribute('href') || ''
+                
+                // Clean up text - remove common suffixes/prefixes
+                text = text
+                  .replace(/\s*\.\s*Privacy Notice.*$/i, '')
+                  .replace(/\s*\.\s*Privacy.*$/i, '')
+                  .replace(/\s*Portfolio job opportunities\.?\s*/i, '')
+                  .replace(/\s*Your career\.?\s*/i, '')
+                  .replace(/\s*\d+[,.]?\d*\s+opportunities?\.?\s*/i, '')
+                  .replace(/\s*Build the future.*$/i, '')
+                  .trim()
+                
+                // Filter out category headers and navigation
+                const titleLower = text.toLowerCase()
+                if (
+                  !text ||
+                  text.length < 10 ||
+                  text.split(/\s+/).length < 2 ||
+                  titleLower.includes(' jobs') ||
+                  titleLower.includes('jobs ') ||
+                  titleLower === 'jobs' ||
+                  titleLower.includes('create profile') ||
+                  titleLower.includes('sign ') ||
+                  titleLower.includes('account.') ||
+                  titleLower.includes('portfolio job') ||
+                  titleLower.includes('privacy notice') ||
+                  titleLower.includes('your career') ||
+                  titleLower.includes('opportunities') ||
+                  titleLower.includes('build the future') ||
+                  titleLower.match(/^\d+[,.]?\d*\s+opportunities?/i) ||
+                  titleLower.match(/^(freelance|contract|part.?time|full.?time)\s+(developer|designer|engineer|jobs?)$/i) ||
+                  titleLower.match(/^(engineering|product|design|sales|marketing|operations|data|customer support)\s+jobs?$/i) ||
+                  titleLower.endsWith('›') ||
+                  titleLower.endsWith('→') ||
+                  titleLower === 'full' ||
+                  titleLower === 'senior' ||
+                  titleLower === 'junior'
+                ) {
+                  return null
+                }
+                
                 return {
                   title: text,
                   company: '',
@@ -96,6 +202,7 @@ export class GenericVCScraper extends BaseScraper {
                   description: '',
                 }
               })
+              .filter(item => item !== null && item.title && item.title.length >= 10)
           })
           if (links.length > 0) {
             jobElements = links
@@ -109,14 +216,86 @@ export class GenericVCScraper extends BaseScraper {
       for (const job of jobElements) {
         if (!job.title || job.title.length < 5) continue
 
-        const fullLink = job.link.startsWith('http') ? job.link : `${this.sourceUrl}${job.link}`
+        // Clean up title one more time to remove any remaining artifacts
+        let cleanTitle = job.title
+          .replace(/\s*\.\s*Privacy Notice.*$/i, '')
+          .replace(/\s*\.\s*Privacy.*$/i, '')
+          .replace(/\s*Portfolio job opportunities\.?\s*/i, '')
+          .replace(/\s*Your career\.?\s*/i, '')
+          .replace(/\s*\d+[,.]?\d*\s+opportunities?\.?\s*/i, '')
+          .replace(/\s*Build the future.*$/i, '')
+          .replace(/\s*from here.*$/i, '')
+          .trim()
+
+        // Skip if title is too short or looks invalid after cleaning
+        if (cleanTitle.length < 10 || cleanTitle.split(/\s+/).filter(w => w.length > 0).length < 2) {
+          continue
+        }
+
+        // Construct full link properly
+        let fullLink = job.link.startsWith('http') 
+          ? job.link 
+          : `${this.sourceUrl.replace(/\/$/, '')}${job.link.startsWith('/') ? '' : '/'}${job.link}`
+
+        // Ensure link is valid
+        if (!fullLink.includes('http')) {
+          continue
+        }
+
+        // Extract proper company name if missing
+        let companyName = this.normalizeText(job.company)
+        if (!companyName || companyName.toLowerCase() === 'unknown' || companyName.length < 2) {
+          // Try to extract from title first
+          companyName = this.extractCompanyName(cleanTitle, fullLink)
+          
+          // If still not found, try to get from URL structure
+          if (!companyName || companyName.toLowerCase() === 'unknown') {
+            const urlMatch = fullLink.match(/https?:\/\/([^/]+)/)
+            if (urlMatch) {
+              const domain = urlMatch[1]
+              // For VC portfolio sites, try to extract company from subdomain or path
+              const subdomainMatch = domain.match(/^([^.]+)\.(jobs|careers|talent)/)
+              if (subdomainMatch) {
+                companyName = subdomainMatch[1].charAt(0).toUpperCase() + subdomainMatch[1].slice(1)
+              } else {
+                // Try path-based extraction
+                const pathMatch = fullLink.match(/\/([^/]+)\/jobs?/)
+                if (pathMatch && pathMatch[1].length > 2) {
+                  companyName = pathMatch[1].charAt(0).toUpperCase() + pathMatch[1].slice(1)
+                }
+              }
+            }
+          }
+        }
+
+        // Don't use generic names like "Y Combinator" or source website name as company
+        if (companyName.toLowerCase() === 'y combinator' || 
+            companyName.toLowerCase() === this.name.toLowerCase() ||
+            companyName.toLowerCase().includes('jobs') ||
+            companyName.toLowerCase().includes('careers')) {
+          // Try harder to extract from title or URL
+          const titleParts = cleanTitle.split(' - ').filter(p => p.trim())
+          if (titleParts.length > 1) {
+            // Assume first part might be company if it doesn't have job keywords
+            const possibleCompany = titleParts[0].trim()
+            const jobKeywords = ['engineer', 'developer', 'manager', 'designer', 'analyst', 'specialist']
+            if (!jobKeywords.some(k => possibleCompany.toLowerCase().includes(k))) {
+              companyName = possibleCompany
+            }
+          }
+        }
+
+        // Validate the job before adding (use cleaned title)
+        if (!this.isValidJob(cleanTitle, companyName, fullLink)) {
+          continue
+        }
 
         const jobData: JobData = {
-          company_name: this.normalizeText(job.company) || 'Unknown',
+          company_name: companyName,
           industry: null,
           location: this.normalizeText(job.location) || 'Remote',
           funding_stage: this.fundingStage,
-          role_title: this.normalizeText(job.title),
+          role_title: this.normalizeText(cleanTitle),
           role_type: 'Full-time',
           role_level: this.extractRoleLevel(job.title, job.description),
           work_mode: job.location.toLowerCase().includes('remote') ? 'Remote' : 'Hybrid',

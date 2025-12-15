@@ -66,8 +66,26 @@ export class WorkAtAStartupScraper extends BaseScraper {
                 const href = link.getAttribute('href') || ''
                 const parent = link.closest('div, li, article')
                 
+                const title = text || parent?.querySelector('h2, h3')?.textContent?.trim() || ''
+                
+                // Filter out category headers and navigation
+                const titleLower = title.toLowerCase()
+                if (
+                  titleLower.includes(' jobs') ||
+                  titleLower.includes('jobs ') ||
+                  titleLower === 'jobs' ||
+                  titleLower.includes('create profile') ||
+                  titleLower.includes('sign ') ||
+                  titleLower.match(/^(freelance|contract|part.?time|full.?time)\s+(developer|designer|engineer|jobs?)$/i) ||
+                  titleLower.match(/^(engineering|product|design|sales|marketing|operations|data|customer support)\s+jobs?$/i) ||
+                  titleLower.endsWith('›') ||
+                  titleLower.endsWith('→')
+                ) {
+                  return null
+                }
+                
                 return {
-                  title: text || parent?.querySelector('h2, h3')?.textContent?.trim() || '',
+                  title,
                   company: parent?.querySelector('[class*="company"]')?.textContent?.trim() || '',
                   link: href,
                   location: 'Remote',
@@ -75,6 +93,7 @@ export class WorkAtAStartupScraper extends BaseScraper {
                   description: '',
                 }
               })
+              .filter(item => item !== null)
           })
           if (links.length > 0) {
             jobElements = links
@@ -86,11 +105,22 @@ export class WorkAtAStartupScraper extends BaseScraper {
       }
 
       for (const job of jobElements) {
-        if (!job.title || !job.company) continue
+        if (!job.title || job.title.length < 5) continue
 
         const fullLink = job.link.startsWith('http')
           ? job.link
           : `${this.sourceUrl}${job.link}`
+
+        // Extract proper company name
+        let companyName = this.normalizeText(job.company)
+        if (!companyName || companyName.toLowerCase() === 'unknown' || companyName.length < 2) {
+          companyName = this.extractCompanyName(job.title, fullLink)
+        }
+
+        // Validate the job before adding
+        if (!this.isValidJob(job.title, companyName, fullLink)) {
+          continue
+        }
 
         const workMode = job.location.toLowerCase().includes('remote')
           ? 'Remote'
@@ -99,7 +129,7 @@ export class WorkAtAStartupScraper extends BaseScraper {
           : 'Onsite'
 
         const jobData: JobData = {
-          company_name: this.normalizeText(job.company),
+          company_name: companyName,
           industry: null,
           location: this.normalizeText(job.location) || 'Remote',
           funding_stage: null,

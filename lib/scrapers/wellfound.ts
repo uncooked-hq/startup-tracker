@@ -92,6 +92,17 @@ export class WellfoundScraper extends BaseScraper {
           ? job.link
           : `${this.sourceUrl}${job.link}`
 
+        // Extract proper company name
+        let companyName = this.normalizeText(job.company)
+        if (!companyName || companyName.toLowerCase() === 'unknown' || companyName.length < 2) {
+          companyName = this.extractCompanyName(job.title, fullLink)
+        }
+
+        // Validate the job before adding
+        if (!this.isValidJob(job.title, companyName, fullLink)) {
+          continue
+        }
+
         const workMode = job.location.toLowerCase().includes('remote')
           ? 'Remote'
           : job.location.toLowerCase().includes('hybrid')
@@ -99,7 +110,7 @@ export class WellfoundScraper extends BaseScraper {
           : 'Onsite'
 
         const jobData: JobData = {
-          company_name: this.normalizeText(job.company) || 'Unknown Company',
+          company_name: companyName,
           industry: null,
           location: this.normalizeText(job.location) || 'Remote',
           funding_stage: null,

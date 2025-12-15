@@ -3,11 +3,13 @@
 
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["job_tracker"]
 }
 
 model Job {
@@ -35,5 +37,6 @@ model Job {
   @@index([is_active])
   @@index([source_website])
   @@index([posting_date])
+  @@schema("job_tracker")
 }
 

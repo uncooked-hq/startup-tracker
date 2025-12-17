@@ -40,3 +40,94 @@ model Job {
   @@schema("job_tracker")
 }
 
+// Represents real jobs regardless of source
+// TODO: Update schema w duplicate handling refer to Linear ticket
+model TrackerRole {
+  id                   String   @id @default(uuid())
+  
+  // Company
+  company_name         String
+  company_domain       String?
+  industry             String?
+  funding_stage        String?
+  
+  // Role
+  role_title           String
+  role_level           String?
+  role_type            String?
+  work_mode            String?
+  location             String?
+  
+  // Compensation
+  compensation_text    String?
+  salary_min           Int?
+  salary_max           Int?
+  salary_currency      String?
+  offers_equity        Boolean?
+  
+  // Content
+  company_description  String?
+  role_description     String?
+  
+  // Dates
+  posting_date         DateTime?
+  closing_date         DateTime?
+  
+  // Status (derived)
+  is_active            Boolean   @default(true)
+  first_seen_at        DateTime  @default(now())
+  last_seen_at         DateTime  @default(now())
+  
+  // Metadata
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
+  
+  // Relations (prisma virtual field no overhead)
+  sources              TrackerRoleSource[] 
+  
+  @@index([is_active, updated_at(sort: Desc)])
+  @@index([company_name])
+  @@index([role_title])
+  @@index([last_seen_at])
+  @@schema("job_tracker")
+  @@map("tracker_roles")
+}
+
+// Represents all job instance from all jobs 
+// 1 TrackerRole : N TrackerRoleSource(s)
+model TrackerRoleSource {
+  id                String   @id @default(uuid())
+  
+  // Relation to canonical role
+  tracker_role_id   String
+  tracker_role      TrackerRole @relation(fields: [tracker_role_id], references: [id], onDelete: Cascade)
+  
+  // Source information
+  source            String
+  source_role_id    String
+  
+  // URLs
+  source_url        String
+  application_url   String
+  
+  // Tracking
+  last_seen_at      DateTime  @default(now())
+  last_scraped_at   DateTime  @default(now())
+  scrape_status     String    @default("success")
+  
+  // Raw data
+  raw_payload       Json?
+  
+  // Metadata
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+  
+  @@unique([source, source_role_id])
+  @@index([tracker_role_id])
+  @@index([source])
+  @@index([last_seen_at])
+  @@index([scrape_status])
+  @@schema("job_tracker")
+  @@map("tracker_role_sources")
+}
+

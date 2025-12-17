@@ -1,11 +1,30 @@
 import React, { useEffect } from 'react';
 import { Job } from '@/lib/types';
-import { X, MapPin, Briefcase, DollarSign, Building, ExternalLink } from 'lucide-react';
+import { X, MapPin, Briefcase, DollarSign, Building, ExternalLink, Link2, Calendar } from 'lucide-react';
 
 interface JobModalProps {
   job: Job | null;
   onClose: () => void;
 }
+
+// Helper to get company initial
+const getCompanyInitial = (company: string): string => {
+  return company.charAt(0).toUpperCase();
+};
+
+// Helper to format salary range
+const formatSalary = (job: Job): string => {
+  if (job.salary) return job.salary;
+  if (job.salaryMin && job.salaryMax) {
+    const currency = job.salaryCurrency || 'USD';
+    return `${currency} ${job.salaryMin.toLocaleString()} - ${job.salaryMax.toLocaleString()}`;
+  }
+  if (job.salaryMin) {
+    const currency = job.salaryCurrency || 'USD';
+    return `${currency} ${job.salaryMin.toLocaleString()}+`;
+  }
+  return 'Not specified';
+};
 
 export const JobModal: React.FC<JobModalProps> = ({ job, onClose }) => {
   // Prevent scrolling when modal is open
@@ -31,15 +50,19 @@ export const JobModal: React.FC<JobModalProps> = ({ job, onClose }) => {
         {/* Header */}
         <div className="p-6 border-b border-white/5 flex items-start justify-between bg-[#141414]">
           <div className="flex gap-4 items-center">
-            <div className="flex items-center justify-center w-16 h-16 text-3xl bg-white/5 rounded-2xl border border-white/5">
-              {job.logo}
+            <div className="flex items-center justify-center w-16 h-16 text-3xl bg-white/5 rounded-2xl border border-white/5 font-bold">
+              {job.logo || getCompanyInitial(job.company)}
             </div>
             <div>
               <h2 className="text-2xl font-semibold text-white tracking-tight">{job.role}</h2>
               <div className="flex items-center gap-2 text-neutral-400 mt-1">
                 <span className="font-medium text-white">{job.company}</span>
-                <span>•</span>
-                <span>{job.industry}</span>
+                {job.industry && (
+                  <>
+                    <span>•</span>
+                    <span>{job.industry}</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -57,41 +80,96 @@ export const JobModal: React.FC<JobModalProps> = ({ job, onClose }) => {
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             <div className="p-3 rounded-2xl bg-white/5 border border-white/5">
               <div className="text-xs text-neutral-500 mb-1 flex items-center gap-1"><MapPin size={12}/> Location</div>
-              <div className="text-sm font-medium text-white truncate">{job.location}</div>
+              <div className="text-sm font-medium text-white truncate">{job.location || 'Not specified'}</div>
             </div>
             <div className="p-3 rounded-2xl bg-white/5 border border-white/5">
               <div className="text-xs text-neutral-500 mb-1 flex items-center gap-1"><Briefcase size={12}/> Type</div>
-              <div className="text-sm font-medium text-white truncate">{job.type}</div>
+              <div className="text-sm font-medium text-white truncate">{job.type || 'Not specified'}</div>
             </div>
             <div className="p-3 rounded-2xl bg-white/5 border border-white/5">
               <div className="text-xs text-neutral-500 mb-1 flex items-center gap-1"><DollarSign size={12}/> Salary</div>
-              <div className="text-sm font-medium text-white truncate">{job.salary}</div>
+              <div className="text-sm font-medium text-white truncate">{formatSalary(job)}</div>
             </div>
             <div className="p-3 rounded-2xl bg-white/5 border border-white/5">
               <div className="text-xs text-neutral-500 mb-1 flex items-center gap-1"><Building size={12}/> Mode</div>
-              <div className="text-sm font-medium text-white truncate">{job.workMode}</div>
+              <div className="text-sm font-medium text-white truncate">{job.workMode || 'Not specified'}</div>
             </div>
           </div>
 
-          {/* Description */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-serif italic text-white/80">the vibe check</h3>
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-neutral-300 leading-relaxed lowercase">
-              "{job.description}"
-            </div>
-          </div>
-
-          {/* Requirements */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-serif italic text-white/80">what you need</h3>
+          {/* Additional Info */}
+          {(job.roleLevel || job.fundingStage || job.offersEquity) && (
             <div className="flex flex-wrap gap-2">
-              {job.requirements.map((req, index) => (
-                <span key={index} className="px-3 py-1.5 text-sm text-white bg-[#1a1a1a] border border-white/10 rounded-full">
-                  {req}
+              {job.roleLevel && (
+                <span className="px-3 py-1.5 text-xs text-neutral-300 bg-white/5 border border-white/5 rounded-full">
+                  Level: {job.roleLevel}
                 </span>
-              ))}
+              )}
+              {job.fundingStage && (
+                <span className="px-3 py-1.5 text-xs text-neutral-300 bg-white/5 border border-white/5 rounded-full">
+                  {job.fundingStage}
+                </span>
+              )}
+              {job.offersEquity && (
+                <span className="px-3 py-1.5 text-xs text-green-400 bg-green-500/10 border border-green-500/20 rounded-full">
+                  Equity Available
+                </span>
+              )}
             </div>
-          </div>
+          )}
+
+          {/* Company Description */}
+          {job.description && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-serif italic text-white/80">about the company</h3>
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-neutral-300 leading-relaxed">
+                {job.description}
+              </div>
+            </div>
+          )}
+
+          {/* Role Description */}
+          {job.roleDescription && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-serif italic text-white/80">about the role</h3>
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-neutral-300 leading-relaxed">
+                {job.roleDescription}
+              </div>
+            </div>
+          )}
+
+          {/* Sources - Where this job is listed */}
+          {job.sources && job.sources.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-serif italic text-white/80 flex items-center gap-2">
+                <Link2 size={18} /> found on {job.sources.length} platform{job.sources.length > 1 ? 's' : ''}
+              </h3>
+              <div className="space-y-2">
+                {job.sources.map((source) => (
+                  <a
+                    key={source.id}
+                    href={source.application_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-brand/30 hover:bg-white/10 transition-all group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 flex items-center justify-center bg-brand/10 rounded-xl border border-brand/20 text-brand font-bold text-sm">
+                        {source.source.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-white">{source.source}</div>
+                        <div className="text-xs text-neutral-500 flex items-center gap-1">
+                          <Calendar size={10} />
+                          Last seen: {new Date(source.last_seen_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                    <ExternalLink size={16} className="text-neutral-500 group-hover:text-brand transition-colors" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer Actions */}
@@ -102,12 +180,16 @@ export const JobModal: React.FC<JobModalProps> = ({ job, onClose }) => {
           >
             close
           </button>
-          <button 
-            onClick={() => console.log(`Applied to ${job.id}`)}
-            className="px-8 py-3 text-sm font-medium text-white transition-transform hover:scale-105 active:scale-95 bg-brand rounded-full shadow-lg shadow-brand/20 flex items-center gap-2"
-          >
-            apply now <ExternalLink size={16} />
-          </button>
+          {job.sources && job.sources.length > 0 && (
+            <a
+              href={job.sources[0].application_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-8 py-3 text-sm font-medium text-white transition-transform hover:scale-105 active:scale-95 bg-brand rounded-full shadow-lg shadow-brand/20 flex items-center gap-2"
+            >
+              apply now <ExternalLink size={16} />
+            </a>
+          )}
         </div>
       </div>
     </div>

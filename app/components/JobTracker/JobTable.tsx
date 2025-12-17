@@ -9,6 +9,11 @@ interface JobTableProps {
   onSort: (key: keyof Job) => void;
 }
 
+// Helper to get company initial
+const getCompanyInitial = (company: string): string => {
+  return company.charAt(0).toUpperCase();
+};
+
 export const JobTable: React.FC<JobTableProps> = ({ jobs, onJobClick, sortConfig, onSort }) => {
   const headers: { key: keyof Job; label: string }[] = [
     { key: 'role', label: 'Role' },
@@ -60,8 +65,8 @@ export const JobTable: React.FC<JobTableProps> = ({ jobs, onJobClick, sortConfig
                 className="group hover:bg-white/5 transition-colors cursor-pointer"
               >
                 <td className="px-6 py-4">
-                  <div className="w-10 h-10 flex items-center justify-center bg-[#141414] rounded-xl border border-white/5 text-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
-                    {job.logo}
+                  <div className="w-10 h-10 flex items-center justify-center bg-[#141414] rounded-xl border border-white/5 text-xl shadow-inner group-hover:scale-110 transition-transform duration-300 font-bold">
+                    {job.logo || getCompanyInitial(job.company)}
                   </div>
                 </td>
                 <td className="px-6 py-4">
@@ -75,23 +80,27 @@ export const JobTable: React.FC<JobTableProps> = ({ jobs, onJobClick, sortConfig
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  <span className="px-2.5 py-1 rounded-full border border-white/5 bg-white/5 text-xs text-neutral-400 font-medium whitespace-nowrap">
-                    {job.industry}
-                  </span>
+                  {job.industry ? (
+                    <span className="px-2.5 py-1 rounded-full border border-white/5 bg-white/5 text-xs text-neutral-400 font-medium whitespace-nowrap">
+                      {job.industry}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-neutral-600">—</span>
+                  )}
                 </td>
                 <td className="px-6 py-4">
                   <span className="text-sm text-neutral-400">
-                    {job.location}
+                    {job.location || '—'}
                   </span>
                 </td>
                 <td className="px-6 py-4">
                   <span className="text-sm text-neutral-400 whitespace-nowrap">
-                    {job.type}
+                    {job.type || '—'}
                   </span>
                 </td>
                 <td className="px-6 py-4">
                   <span className="text-sm text-neutral-400 font-medium">
-                    {job.salary}
+                    {job.salary || '—'}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">

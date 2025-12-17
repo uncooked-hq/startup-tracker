@@ -1,6 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Search, LayoutGrid, List } from 'lucide-react';
-import { mockJobs } from '@/lib/data/mockJobs';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, LayoutGrid, List, Loader2 } from 'lucide-react';
 import { Job, FilterState } from '@/lib/types';
 import { JobCard } from './JobCard';
 import { FilterBar } from './FilterBar';
@@ -18,30 +17,68 @@ export const JobTracker: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Job; direction: 'asc' | 'desc' } | null>(null);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  
+  // API state
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 50,
+    total: 0,
+    totalPages: 0,
+  });
+
+  // Fetch jobs from API
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const params = new URLSearchParams({
+          page: pagination.page.toString(),
+          limit: pagination.limit.toString(),
+        });
+
+        // Add filters to query params
+        if (filters.search) {
+          params.append('search', filters.search);
+        }
+        if (filters.industry) {
+          params.append('industry', filters.industry);
+        }
+
+        const response = await fetch(`/api/jobs?${params.toString()}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch jobs');
+        }
+
+        const data = await response.json();
+        setJobs(data.jobs || []);
+        setPagination(data.pagination);
+      } catch (err) {
+        console.error('Error fetching jobs:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load jobs');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJobs();
+  }, [pagination.page, pagination.limit, filters.search, filters.industry]);
 
   const filteredAndSortedJobs = useMemo(() => {
-    // 1. Filter
-    let result = mockJobs.filter(job => {
-      // Search match
-      const searchMatch = 
-        job.role.toLowerCase().includes(filters.search.toLowerCase()) ||
-        job.company.toLowerCase().includes(filters.search.toLowerCase()) ||
-        job.industry.toLowerCase().includes(filters.search.toLowerCase());
-      
-      if (!searchMatch) return false;
-
-      // Industry match
-      if (filters.industry && job.industry !== filters.industry) {
-        return false;
-      }
-
+    // 1. Client-side filter (for types and modes, since search and industry are handled server-side)
+    let result = jobs.filter(job => {
       // Type match (OR logic for array)
-      if (filters.types.length > 0 && !filters.types.includes(job.type)) {
+      if (filters.types.length > 0 && job.type && !filters.types.includes(job.type)) {
         return false;
       }
 
       // Mode match
-      if (filters.modes.length > 0 && !filters.modes.includes(job.workMode)) {
+      if (filters.modes.length > 0 && job.workMode && !filters.modes.includes(job.workMode)) {
         return false;
       }
 
@@ -54,9 +91,18 @@ export const JobTracker: React.FC = () => {
         const aValue = a[sortConfig.key];
         const bValue = b[sortConfig.key];
 
-        // Basic comparison (works for strings like company, role, etc.)
-        // Note: For strings like salaries or dates ('2h ago'), this is a simple lexicographical sort.
-        // For a production app, we would parse these values.
+        // Handle null/undefined values
+        if (aValue === null || aValue === undefined) return 1;
+        if (bValue === null || bValue === undefined) return -1;
+
+        // Handle Date objects
+        if (aValue instanceof Date && bValue instanceof Date) {
+          return sortConfig.direction === 'asc' 
+            ? aValue.getTime() - bValue.getTime()
+            : bValue.getTime() - aValue.getTime();
+        }
+
+        // Basic comparison for strings and numbers
         if (aValue < bValue) {
           return sortConfig.direction === 'asc' ? -1 : 1;
         }
@@ -68,7 +114,7 @@ export const JobTracker: React.FC = () => {
     }
 
     return result;
-  }, [filters, sortConfig]);
+  }, [jobs, filters.types, filters.modes, sortConfig]);
 
   const handleSort = (key: keyof Job) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -134,7 +180,24 @@ export const JobTracker: React.FC = () => {
         </div>
 
         {/* Content View */}
-        {filteredAndSortedJobs.length > 0 ? (
+        {loading ? (
+          <div className="col-span-full py-32 text-center text-neutral-500 border border-white/5 rounded-[2.5rem] bg-[#0A0A0A]">
+            <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-brand" />
+            <p className="text-xl font-medium mb-2">loading fresh roles...</p>
+            <p className="text-sm opacity-60">hang tight, we're fetching the latest opportunities</p>
+          </div>
+        ) : error ? (
+          <div className="col-span-full py-32 text-center text-red-500 border border-red-500/20 rounded-[2.5rem] bg-[#0A0A0A]">
+            <p className="text-xl font-medium mb-2">oops, something went wrong</p>
+            <p className="text-sm mb-6 opacity-60">{error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-6 py-2 bg-red-500 text-white font-bold rounded-full hover:bg-red-600 transition-colors"
+            >
+              try again
+            </button>
+          </div>
+        ) : filteredAndSortedJobs.length > 0 ? (
           viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in-up">
               {filteredAndSortedJobs.map(job => (

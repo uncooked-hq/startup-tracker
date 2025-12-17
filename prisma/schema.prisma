@@ -85,6 +85,7 @@ model TrackerRole {
   // Relations (prisma virtual field no overhead)
   sources              TrackerRoleSource[] 
   
+  @@unique([company_name, role_title])
   @@index([is_active, updated_at(sort: Desc)])
   @@index([company_name])
   @@index([role_title])

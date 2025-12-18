@@ -55,12 +55,29 @@ export interface TrackerScraperResult {
   source: string
 }
 
+export interface PlaywrightOptions {
+  waitForSelector?: string
+  timeout?: number
+  scrollToLoad?: boolean
+  maxScrolls?: number
+}
+
+export interface ScraperOptions {
+  jobTypes?: string[]
+  postedSince?: string
+  locations?: string[]
+  seniority?: string[]
+}
+
 export interface Scraper {
   name: string
-  url: string
+  url: string | ((options?: ScraperOptions) => string)
   parse: (html: string) => Promise<Array<{
     role: TrackerRoleData
     source: TrackerRoleSourceData
   }>>
+  usePlaywright?: boolean
+  playwrightOptions?: PlaywrightOptions
+  options?: ScraperOptions
 }
 

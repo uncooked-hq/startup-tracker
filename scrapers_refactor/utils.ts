@@ -24,12 +24,15 @@ export async function fetchHTML(url: string): Promise<string> {
 
 /**
  * Run a scraper (fetch + parse)
+ * This is for traditional HTTP + Cheerio scrapers only.
+ * Use runScraperSmart() to automatically handle both types.
  */
 export async function runScraper(scraper: Scraper): Promise<TrackerScraperResult> {
   try {
-    console.log(`[${scraper.name}] Fetching ${scraper.url}`)
+    const url = typeof scraper.url === 'function' ? scraper.url(scraper.options) : scraper.url
+    console.log(`[${scraper.name}] Fetching ${url}`)
     
-    const html = await fetchHTML(scraper.url)
+    const html = await fetchHTML(url)
     const roles = await scraper.parse(html)
     
     console.log(`[${scraper.name}] ✓ Extracted ${roles.length} roles`)
@@ -47,6 +50,19 @@ export async function runScraper(scraper: Scraper): Promise<TrackerScraperResult
       error: error instanceof Error ? error.message : 'Unknown error',
       source: scraper.name,
     }
+  }
+}
+
+/**
+ * Smart runner that automatically detects if scraper needs Playwright
+ */
+export async function runScraperSmart(scraper: Scraper): Promise<TrackerScraperResult> {
+  if (scraper.usePlaywright) {
+    // Dynamically import Playwright utilities (only when needed)
+    const { runPlaywrightScraper } = await import('./playwright-utils')
+    return runPlaywrightScraper(scraper)
+  } else {
+    return runScraper(scraper)
   }
 }
 

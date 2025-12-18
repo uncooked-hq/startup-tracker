@@ -14,8 +14,8 @@
  */
 
 import * as cheerio from 'cheerio'
-import type { Scraper, TrackerRoleData, TrackerRoleSourceData } from './types'
-import { normalizeText, extractRoleLevel, isValidJob } from './utils'
+import type { Scraper, TrackerRoleData, TrackerRoleSourceData } from '../types'
+import { normalizeText, extractRoleLevel, isValidJob } from '../utils/helpers'
 
 export const ycScraper: Scraper = {
   name: 'Y Combinator',
@@ -169,9 +169,9 @@ export const ycScraper: Scraper = {
       }
 
       const source: TrackerRoleSourceData = {
-        source: ycScraper.url,
+        source: typeof ycScraper.url === 'function' ? ycScraper.url(ycScraper.options) : ycScraper.url,
         source_role_id: jobId,
-        source_url: ycScraper.url,
+        source_url: typeof ycScraper.url === 'function' ? ycScraper.url(ycScraper.options) : ycScraper.url,
         application_url: applicationUrl,
         raw_payload: null,
       }
@@ -190,7 +190,7 @@ export const ycScraper: Scraper = {
 
 // Allow running standalone for testing
 if (require.main === module) {
-  const { runScraper } = require('./utils')
+  const { runScraper } = require('../utils/helpers')
   
   runScraper(ycScraper).then((result: any) => {
     console.log(`\n${'='.repeat(60)}`)

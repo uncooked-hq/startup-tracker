@@ -13,8 +13,8 @@
  */
 
 import * as cheerio from 'cheerio'
-import type { Scraper, TrackerRoleData, TrackerRoleSourceData, ScraperOptions } from './types'
-import { normalizeText, extractRoleLevel, isValidJob } from './utils'
+import type { Scraper, TrackerRoleData, TrackerRoleSourceData, ScraperOptions } from '../types'
+import { normalizeText, extractRoleLevel, isValidJob } from '../utils/helpers'
 
 /**
  * Build a16z URL with filters
@@ -214,7 +214,7 @@ export const a16zScraper: Scraper = {
 // Standalone test
 if (require.main === module) {
   (async () => {
-    const { runPlaywrightScraper } = await import('./playwright-utils')
+    const { runPlaywrightScraper } = await import('../utils/playwright')
     
     const result = await runPlaywrightScraper(a16zScraper)
     

@@ -2,8 +2,8 @@
  * Export all scrapers
  */
 
-import { ycScraper } from './yc-scraper'
-import { a16zScraper } from './a16z-scraper'
+import { ycScraper } from './scrapers/yc-scraper'
+import { a16zScraper } from './scrapers/a16z-scraper'
 
 // Array of all active scrapers
 export const scrapers = [
@@ -12,8 +12,8 @@ export const scrapers = [
 ]
 
 // Re-export everything
-export { ycScraper } from './yc-scraper'
-export { a16zScraper } from './a16z-scraper'
+export { ycScraper } from './scrapers/yc-scraper'
+export { a16zScraper } from './scrapers/a16z-scraper'
 export { 
   runScraper, 
   runScraperSmart, 
@@ -21,7 +21,7 @@ export {
   normalizeText, 
   extractRoleLevel, 
   isValidJob 
-} from './utils'
+} from './utils/helpers'
 export type { 
   Scraper, 
   ScraperOptions,

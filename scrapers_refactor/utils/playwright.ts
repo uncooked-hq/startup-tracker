@@ -3,7 +3,7 @@
  */
 
 import { chromium, Browser, Page } from 'playwright'
-import type { Scraper, TrackerScraperResult } from './types'
+import type { Scraper, TrackerScraperResult } from '../types'
 
 /**
  * Run a scraper that requires Playwright (headless browser)

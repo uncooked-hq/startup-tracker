@@ -2,7 +2,7 @@
  * Utility functions
  */
 
-import type { Scraper, TrackerScraperResult } from './types'
+import type { Scraper, TrackerScraperResult } from '../types'
 
 /**
  * Fetch HTML from a URL
@@ -59,7 +59,7 @@ export async function runScraper(scraper: Scraper): Promise<TrackerScraperResult
 export async function runScraperSmart(scraper: Scraper): Promise<TrackerScraperResult> {
   if (scraper.usePlaywright) {
     // Dynamically import Playwright utilities (only when needed)
-    const { runPlaywrightScraper } = await import('./playwright-utils')
+    const { runPlaywrightScraper } = await import('./playwright')
     return runPlaywrightScraper(scraper)
   } else {
     return runScraper(scraper)

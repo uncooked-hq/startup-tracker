@@ -3,7 +3,7 @@
  */
 
 import { prisma } from '@/lib/prisma'
-import { scrapers, runScraper } from './index'
+import { scrapers, runScraperSmart } from './index'
 
 async function runAllScrapers() {
   console.log(`\n🚀 Starting scraper run at ${new Date().toISOString()}`)
@@ -14,7 +14,7 @@ async function runAllScrapers() {
   let failureCount = 0
 
   for (const scraper of scrapers) {
-    const result = await runScraper(scraper)
+    const result = await runScraperSmart(scraper)
 
     if (result.success) {
       console.log(`\n[${scraper.name}] Processing ${result.roles.length} roles...`)

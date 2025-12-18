@@ -3,17 +3,17 @@
  */
 
 import { ycScraper } from './scrapers/yc-scraper'
-import { a16zScraper } from './scrapers/a16z-scraper'
+import { a16zScraperAPI } from './scrapers/a16z-scraper-api'
 
 // Array of all active scrapers
 export const scrapers = [
   ycScraper,
-  a16zScraper,
+  a16zScraperAPI, // Using API instead of Playwright
 ]
 
 // Re-export everything
 export { ycScraper } from './scrapers/yc-scraper'
-export { a16zScraper } from './scrapers/a16z-scraper'
+export { a16zScraperAPI } from './scrapers/a16z-scraper-api'
 export { 
   runScraper, 
   runScraperSmart, 

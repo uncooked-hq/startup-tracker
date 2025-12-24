@@ -170,7 +170,7 @@ export const JobTracker: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-6 pb-24 relative z-10" id="job-tracker">
+    <div className="w-full max-w-7xl mx-auto px-6 pb-24 relative" id="job-tracker">
       <div className="flex flex-col gap-10">
         
         {/* Controls Container */}

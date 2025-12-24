@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Search, LayoutGrid, List, Loader2 } from 'lucide-react';
 import { Job, FilterState } from '@/lib/types';
 import { JobCard } from './JobCard';
@@ -21,6 +21,7 @@ export const JobTracker: React.FC = () => {
   // API state
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -28,46 +29,90 @@ export const JobTracker: React.FC = () => {
     total: 0,
     totalPages: 0,
   });
+  const [hasMore, setHasMore] = useState(true);
+
+  // Intersection Observer for infinite scroll
+  const observerTarget = useRef<HTMLDivElement>(null);
 
   // Fetch jobs from API
-  useEffect(() => {
-    const fetchJobs = async () => {
-      try {
+  const fetchJobs = useCallback(async (page: number, append: boolean = false) => {
+    try {
+      if (append) {
+        setLoadingMore(true);
+      } else {
         setLoading(true);
-        setError(null);
-        
-        const params = new URLSearchParams({
-          page: pagination.page.toString(),
-          limit: pagination.limit.toString(),
-        });
+      }
+      setError(null);
+      
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: pagination.limit.toString(),
+      });
 
-        // Add filters to query params
-        if (filters.search) {
-          params.append('search', filters.search);
-        }
-        if (filters.industry) {
-          params.append('industry', filters.industry);
-        }
+      // Add filters to query params
+      if (filters.search) {
+        params.append('search', filters.search);
+      }
+      if (filters.industry) {
+        params.append('industry', filters.industry);
+      }
 
-        const response = await fetch(`/api/jobs?${params.toString()}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch jobs');
-        }
+      const response = await fetch(`/api/jobs?${params.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch jobs');
+      }
 
-        const data = await response.json();
+      const data = await response.json();
+      
+      if (append) {
+        setJobs(prev => [...prev, ...(data.jobs || [])]);
+      } else {
         setJobs(data.jobs || []);
-        setPagination(data.pagination);
-      } catch (err) {
-        console.error('Error fetching jobs:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load jobs');
-      } finally {
-        setLoading(false);
+      }
+      
+      setPagination(data.pagination);
+      setHasMore(data.pagination.page < data.pagination.totalPages);
+    } catch (err) {
+      console.error('Error fetching jobs:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load jobs');
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [pagination.limit, filters.search, filters.industry]);
+
+  // Initial load and filter changes
+  useEffect(() => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+    setHasMore(true);
+    fetchJobs(1, false);
+  }, [filters.search, filters.industry, fetchJobs]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+          const nextPage = pagination.page + 1;
+          setPagination(prev => ({ ...prev, page: nextPage }));
+          fetchJobs(nextPage, true);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
       }
     };
-
-    fetchJobs();
-  }, [pagination.page, pagination.limit, filters.search, filters.industry]);
+  }, [hasMore, loading, loadingMore, pagination.page, fetchJobs]);
 
   const filteredAndSortedJobs = useMemo(() => {
     // 1. Client-side filter (for types and modes, since search and industry are handled server-side)
@@ -138,7 +183,7 @@ export const JobTracker: React.FC = () => {
              
              <div className="flex items-center gap-3">
                 <div className="text-neutral-600 text-xs font-medium tracking-wide uppercase border border-white/5 px-3 py-1.5 rounded-full bg-white/5">
-                  {filteredAndSortedJobs.length} active jobs
+                  {filteredAndSortedJobs.length} of {pagination.total} jobs
                 </div>
                 
                 <div className="h-6 w-px bg-white/10 mx-1 hidden md:block"></div>
@@ -184,7 +229,7 @@ export const JobTracker: React.FC = () => {
           <div className="col-span-full py-32 text-center text-neutral-500 border border-white/5 rounded-[2.5rem] bg-[#0A0A0A]">
             <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-brand" />
             <p className="text-xl font-medium mb-2">loading fresh roles...</p>
-            <p className="text-sm opacity-60">hang tight, we're fetching the latest opportunities</p>
+            <p className="text-sm opacity-60">hang tight, we&apos;re fetching the latest opportunities</p>
           </div>
         ) : error ? (
           <div className="col-span-full py-32 text-center text-red-500 border border-red-500/20 rounded-[2.5rem] bg-[#0A0A0A]">
@@ -198,26 +243,43 @@ export const JobTracker: React.FC = () => {
             </button>
           </div>
         ) : filteredAndSortedJobs.length > 0 ? (
-          viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in-up">
-              {filteredAndSortedJobs.map(job => (
-                <JobCard 
-                  key={job.id} 
-                  job={job} 
-                  onClick={setSelectedJob} 
+          <>
+            {viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in-up">
+                {filteredAndSortedJobs.map(job => (
+                  <JobCard 
+                    key={job.id} 
+                    job={job} 
+                    onClick={setSelectedJob} 
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="animate-fade-in-up">
+                <JobTable 
+                  jobs={filteredAndSortedJobs} 
+                  onJobClick={setSelectedJob}
+                  sortConfig={sortConfig}
+                  onSort={handleSort}
                 />
-              ))}
+              </div>
+            )}
+            
+            {/* Infinite scroll trigger */}
+            <div ref={observerTarget} className="h-20 flex items-center justify-center">
+              {loadingMore && (
+                <div className="flex items-center gap-3 text-neutral-500">
+                  <Loader2 className="w-5 h-5 animate-spin text-brand" />
+                  <span className="text-sm font-medium">loading more roles...</span>
+                </div>
+              )}
+              {!hasMore && pagination.total > pagination.limit && (
+                <div className="text-neutral-600 text-sm font-medium">
+                  you&apos;ve reached the end. {pagination.total} jobs loaded.
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="animate-fade-in-up">
-              <JobTable 
-                jobs={filteredAndSortedJobs} 
-                onJobClick={setSelectedJob}
-                sortConfig={sortConfig}
-                onSort={handleSort}
-              />
-            </div>
-          )
+          </>
         ) : (
           <div className="col-span-full py-32 text-center text-neutral-500 border border-white/5 rounded-[2.5rem] bg-[#0A0A0A]">
             <p className="text-xl font-medium mb-2">no roles found matching your vibe.</p>

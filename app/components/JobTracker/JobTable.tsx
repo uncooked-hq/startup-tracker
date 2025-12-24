@@ -1,6 +1,7 @@
 import React from 'react';
 import { Job } from '@/lib/types';
 import { ArrowUp, ArrowDown, ExternalLink } from 'lucide-react';
+import CompanyLogo from '../CompanyLogo';
 
 interface JobTableProps {
   jobs: Job[];
@@ -8,11 +9,6 @@ interface JobTableProps {
   sortConfig: { key: keyof Job; direction: 'asc' | 'desc' } | null;
   onSort: (key: keyof Job) => void;
 }
-
-// Helper to get company initial
-const getCompanyInitial = (company: string): string => {
-  return company.charAt(0).toUpperCase();
-};
 
 export const JobTable: React.FC<JobTableProps> = ({ jobs, onJobClick, sortConfig, onSort }) => {
   const headers: { key: keyof Job; label: string }[] = [
@@ -65,8 +61,8 @@ export const JobTable: React.FC<JobTableProps> = ({ jobs, onJobClick, sortConfig
                 className="group hover:bg-white/5 transition-colors cursor-pointer"
               >
                 <td className="px-6 py-4">
-                  <div className="w-10 h-10 flex items-center justify-center bg-[#141414] rounded-xl border border-white/5 text-xl shadow-inner group-hover:scale-110 transition-transform duration-300 font-bold">
-                    {job.logo || getCompanyInitial(job.company)}
+                  <div className="flex justify-center items-center rounded-md overflow-hidden">
+                    <CompanyLogo name={job.company} />
                   </div>
                 </td>
                 <td className="px-6 py-4">

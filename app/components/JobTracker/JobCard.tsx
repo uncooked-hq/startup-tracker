@@ -1,6 +1,7 @@
 import React from 'react';
 import { Job } from '@/lib/types';
 import { MapPin, Briefcase, Clock, ArrowUpRight } from 'lucide-react';
+import CompanyLogo from '../CompanyLogo';
 
 interface JobCardProps {
   job: Job;
@@ -24,11 +25,6 @@ const formatTimeAgo = (date: Date | null | undefined): string => {
   return `${Math.floor(diffDays / 30)}mo ago`;
 };
 
-// Helper to get company initial
-const getCompanyInitial = (company: string): string => {
-  return company.charAt(0).toUpperCase();
-};
-
 export const JobCard: React.FC<JobCardProps> = ({ job, onClick }) => {
   return (
     <div 
@@ -38,7 +34,9 @@ export const JobCard: React.FC<JobCardProps> = ({ job, onClick }) => {
       <div className="flex justify-between items-start">
         <div className="flex gap-4 items-center">
           <div className="flex items-center justify-center w-14 h-14 text-2xl bg-[#141414] rounded-2xl border border-white/5 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500 ease-out shadow-inner text-white font-bold">
-            {job.logo || getCompanyInitial(job.company)}
+            <div className="flex justify-center items-center rounded-md overflow-hidden">
+              <CompanyLogo name={job.company} />
+            </div>
           </div>
           <div className="flex flex-col justify-center">
             <h3 className="text-xl font-bold text-white group-hover:text-brand transition-colors tracking-tight">{job.role}</h3>

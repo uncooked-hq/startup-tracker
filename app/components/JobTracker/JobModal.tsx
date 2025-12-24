@@ -1,16 +1,12 @@
 import React, { useEffect } from 'react';
 import { Job } from '@/lib/types';
 import { X, MapPin, Briefcase, DollarSign, Building, ExternalLink, Link2, Calendar } from 'lucide-react';
+import CompanyLogo from '../CompanyLogo';
 
 interface JobModalProps {
   job: Job | null;
   onClose: () => void;
 }
-
-// Helper to get company initial
-const getCompanyInitial = (company: string): string => {
-  return company.charAt(0).toUpperCase();
-};
 
 // Helper to format salary range
 const formatSalary = (job: Job): string => {
@@ -51,7 +47,9 @@ export const JobModal: React.FC<JobModalProps> = ({ job, onClose }) => {
         <div className="p-6 border-b border-white/5 flex items-start justify-between bg-[#141414]">
           <div className="flex gap-4 items-center">
             <div className="flex items-center justify-center w-16 h-16 text-3xl bg-white/5 rounded-2xl border border-white/5 font-bold">
-              {job.logo || getCompanyInitial(job.company)}
+              <div className="flex justify-center items-center rounded-md overflow-hidden">
+                <CompanyLogo name={job.company} />
+              </div>
             </div>
             <div>
               <h2 className="text-2xl font-semibold text-white tracking-tight">{job.role}</h2>

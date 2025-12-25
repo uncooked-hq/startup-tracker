@@ -12,7 +12,9 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx lib/seed.ts",
     "db:cleanup": "tsx lib/cleanup-invalid-jobs.ts",
-    "scrape": "tsx lib/scrapers/runner.ts"
+    "scrape": "tsx scrapers_refactor/runner.ts",
+    "view-jobs": "tsx lib/view-jobs.ts",
+    "view-jobs-detailed": "tsx lib/view-jobs-detailed.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.19.1",

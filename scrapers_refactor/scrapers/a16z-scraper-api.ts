@@ -164,7 +164,8 @@ export const a16zScraperAPI: Scraper = {
           source: 'a16z',
           source_role_id: job.jobId,
           source_url: job.applyUrl,
-          source_data: {
+          application_url: job.applyUrl,
+          raw_payload: {
             company_domain: job.companyDomain,
             job_types: job.jobTypes?.map(t => t.label) || [],
             departments: job.departments || [],
@@ -175,7 +176,7 @@ export const a16zScraperAPI: Scraper = {
         }
 
         // Validate before adding
-        if (isValidJob(role.role_title || '', role.company_name || '', source.source_url || '')) {
+        if (isValidJob(role.role_title || '', role.company_name || '', source.application_url || '')) {
           results.push({ role, source })
         }
       } catch (error) {

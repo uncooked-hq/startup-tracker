@@ -15,7 +15,7 @@ export async function runPlaywrightScraper(
   
   try {
     console.log(`[${scraper.name}] Launching headless browser...`)
-    
+
     browser = await chromium.launch({ headless: true })
     const page = await browser.newPage()
     
@@ -25,11 +25,11 @@ export async function runPlaywrightScraper(
       : scraper.url
     
     console.log(`[${scraper.name}] Navigating to ${url}`)
-    
+
     // Navigate and wait for network to be idle
-    await page.goto(url, { 
+    await page.goto(url, {
       waitUntil: 'networkidle',
-      timeout: 60000 
+      timeout: 60000
     })
     
     // Wait for specific selector if provided

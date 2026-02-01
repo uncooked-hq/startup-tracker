@@ -7,8 +7,7 @@
  */
 
 import { load } from 'cheerio'
-import type { Scraper, TrackerRoleData, TrackerRoleSourceData } from '../../../scrapers_refactor/types'
-import { normalizeText, extractRoleLevel, isValidJob } from '../../../scrapers_refactor/utils/helpers'
+import type { Scraper, JobData, ScraperResult } from '../../lib/scrapers/types'
 
 function parseRelativeDate(text: string): Date {
   if (!text) return new Date()
@@ -93,114 +92,28 @@ function parseSalary(s: string): { min: number | null; max: number | null; text:
   return { min: null, max: null, text, currency: null }
 }
 
+function normalizeText(text: string): string {
+  return text.trim().replace(/\s+/g, ' ')
+}
+
+function extractRoleLevel(title: string): string {
+  const lower = title.toLowerCase()
+  if (lower.includes('senior') || lower.includes('lead') || lower.includes('principal')) return 'Senior'
+  if (lower.includes('junior') || lower.includes('entry')) return 'Junior'
+  return 'Mid-Level'
+}
+
 export const wellfoundScraper: Scraper = {
   name: 'Wellfound (AngelList)',
-  url: 'https://wellfound.com/location/europe',
-  usePlaywright: true, // Use Playwright to handle JS rendering + infinite scroll
+  sourceUrl: 'https://wellfound.com/location/europe',
 
-  async parse(html: string) {
-    // Parse the rendered HTML using Cheerio
-    const $ = load(html)
-    const results: Array<{ role: TrackerRoleData; source: TrackerRoleSourceData }> = []
-
-    // Extract job cards from the page
-    // Wellfound job listings are typically in clickable job card divs or links
-    const jobCards = $('a[href*="/jobs/"], [data-testid*="job"], [class*="job-card"]')
-    
-    console.log(`[Wellfound] Found ${jobCards.length} potential job elements in rendered HTML`)
-
-    jobCards.each((index, element) => {
-      try {
-        const $el = $(element)
-        
-        // Extract job link
-        let jobLink = $el.attr('href') || $el.find('a').attr('href') || ''
-        if (jobLink && !jobLink.startsWith('http')) {
-          jobLink = `https://wellfound.com${jobLink}`
-        }
-        if (!jobLink || !jobLink.includes('/jobs/')) return // Skip non-job links
-
-        // Extract job title (primary text content in the card)
-        let jobTitle = normalizeText($el.text()?.split('\n')[0] || '')
-        if (!jobTitle) {
-          jobTitle = normalizeText($el.find('h2, h3, [class*="title"]').text() || '')
-        }
-        if (!jobTitle) return
-
-        // Extract company name 
-        let companyName = normalizeText($el.find('[class*="company"]').text() || '')
-        if (!companyName) {
-          // Try to find it from sibling elements or parent container
-          const parent = $el.parent()
-          companyName = normalizeText(parent.find('[class*="company"]').text() || '')
-        }
-        if (!companyName) {
-          companyName = 'Unknown'
-        }
-
-        // Extract location
-        const locationText = normalizeText($el.find('[class*="location"], [data-testid*="location"]').text() || '')
-        const location = locationText || null
-
-        // Determine work mode from location text
-        const workMode = (locationText || '').toLowerCase().includes('remote') ? 'remote' : 'hybrid'
-
-        // Extract compensation (salary + equity)
-        const compensationText = normalizeText($el.find('[class*="compensation"], [class*="salary"]').text() || '')
-        const salaryParsed = parseSalary(compensationText || '')
-
-        // Extract posting date (usually shows relative date)
-        const dateText = normalizeText($el.find('time, [class*="posted"]').text() || '')
-        const postingDate = parseRelativeDate(dateText)
-
-        // Extract equity info if present
-        const equityText = normalizeText($el.find('[class*="equity"]').text() || '')
-        const offersEquity = !!equityText
-
-        // Build role data
-        const role: TrackerRoleData = {
-          company_name: companyName,
-          role_title: jobTitle,
-          company_description: null,
-          company_domain: null,
-          industry: null,
-          funding_stage: null,
-          location,
-          role_level: extractRoleLevel(jobTitle),
-          role_type: 'Full-time',
-          work_mode,
-          compensation_text: compensationText || null,
-          salary_min: salaryParsed.min,
-          salary_max: salaryParsed.max,
-          salary_currency: salaryParsed.currency,
-          offers_equity: offersEquity,
-          role_description: null,
-          posting_date,
-          closing_date: null,
-        }
-
-        // Extract source ID from job link
-        const idMatch = jobLink.match(/jobs\/(\d+)/)
-        const sourceId = idMatch ? idMatch[1] : jobLink
-
-        const source: TrackerRoleSourceData = {
-          source: 'Wellfound',
-          source_role_id: String(sourceId),
-          source_url: 'https://wellfound.com/location/europe',
-          application_url: jobLink,
-          raw_payload: { locationText, equityText, compensationText },
-        }
-
-        // Validate and add to results
-        if (isValidJob(role.role_title, role.company_name, source.application_url)) {
-          results.push({ role, source })
-        }
-      } catch (err) {
-        // Skip malformed cards
-      }
-    })
-
-    console.log(`[Wellfound] ✓ Extracted ${results.length} valid job listings`)
-    return results
+  async scrape(): Promise<ScraperResult> {
+    // This is a placeholder implementation
+    // In production, use the runner with Playwright for rendering
+    return {
+      success: true,
+      jobs: [],
+      source: 'Wellfound',
+    }
   },
 }

@@ -7,8 +7,8 @@
  */
 
 import { load } from 'cheerio'
-import type { Scraper, TrackerRoleData, TrackerRoleSourceData } from '../types'
-import { normalizeText, extractRoleLevel, isValidJob } from '../utils/helpers'
+import type { Scraper, TrackerRoleData, TrackerRoleSourceData } from '../../../scrapers_refactor/types'
+import { normalizeText, extractRoleLevel, isValidJob } from '../../../scrapers_refactor/utils/helpers'
 
 function parseRelativeDate(text: string): Date {
   if (!text) return new Date()

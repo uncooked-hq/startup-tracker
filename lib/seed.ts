@@ -1,7 +1,24 @@
 import { prisma } from './prisma'
 
 async function seed() {
-  const testJobs = [
+  const testJobs: Array<{
+    company_name: string
+    industry: string
+    location: string
+    funding_stage: string
+    role_title: string
+    role_type: string
+    role_level: string
+    work_mode: string
+    compensation: string
+    equity: string
+    posting_date: Date
+    closing_date: Date | null
+    company_description: string
+    application_link: string
+    source_website: string
+    is_active: boolean
+  }> = [
     {
       company_name: 'TechCorp',
       industry: 'SaaS',
@@ -14,7 +31,7 @@ async function seed() {
       compensation: '$150,000 - $200,000',
       equity: '0.1% - 0.5%',
       posting_date: new Date(),
-      closing_date: null,
+      closing_date: null as Date | null,
       company_description: 'TechCorp is a leading SaaS platform helping businesses scale.',
       application_link: 'https://techcorp.com/jobs/senior-engineer-1',
       source_website: 'https://www.ycombinator.com/jobs',

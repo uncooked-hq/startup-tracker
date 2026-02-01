@@ -60,10 +60,13 @@ const generateJobs = (count: number): Job[] => {
       workMode: modes[modeIndex],
       salary: `$${salaryBase}k - $${salaryTop}k`,
       industry: company.industry,
-      postedAt: `${(i % 23) + 1}h ago`,
+      postedAt: new Date(Date.now() - (i % 23) * 60 * 60 * 1000),
       logo: company.logo,
       description: `join ${company.name.toLowerCase()} and help us build the future of ${company.industry.toLowerCase()}. we're looking for cracked engineers who want to ship fast and break things (safely). vibes are immaculate, snacks are unlimited.`,
-      requirements: ['React', 'TypeScript', 'Vibes', 'Ship fast']
+      requirements: ['React', 'TypeScript', 'Vibes', 'Ship fast'],
+      isActive: true,
+      firstSeenAt: new Date(Date.now() - 1000000),
+      lastSeenAt: new Date()
     };
   });
 };

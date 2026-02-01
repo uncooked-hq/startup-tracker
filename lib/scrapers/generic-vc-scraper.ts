@@ -228,7 +228,7 @@ export class GenericVCScraper extends BaseScraper {
           .trim()
 
         // Skip if title is too short or looks invalid after cleaning
-        if (cleanTitle.length < 10 || cleanTitle.split(/\s+/).filter(w => w.length > 0).length < 2) {
+        if (cleanTitle.length < 10 || cleanTitle.split(/\s+/).filter((w: string) => w.length > 0).length < 2) {
           continue
         }
 
@@ -274,7 +274,7 @@ export class GenericVCScraper extends BaseScraper {
             companyName.toLowerCase().includes('jobs') ||
             companyName.toLowerCase().includes('careers')) {
           // Try harder to extract from title or URL
-          const titleParts = cleanTitle.split(' - ').filter(p => p.trim())
+          const titleParts = cleanTitle.split(' - ').filter((p: string) => p.trim())
           if (titleParts.length > 1) {
             // Assume first part might be company if it doesn't have job keywords
             const possibleCompany = titleParts[0].trim()

@@ -234,12 +234,12 @@ for (const job of jobs) {
 - Some sites may require custom handling
 
 ### 📋 Future Enhancements
-- Automated cron scheduling
-- Email notifications for new jobs
-- Advanced search/filtering
-- Job bookmarking
-- Export to CSV
-- Company profiles
+
+## Action Item: Automate Scraping
+
+- **Goal:** Run the scraper runner on a schedule (e.g. hourly or 4x daily) so the database stays up-to-date without manual intervention.
+- **Recommended approach:** Add a GitHub Actions workflow that runs `npm run scrape` on a configurable schedule and uses a secure `DATABASE_URL` secret (or connects to your production DB). This keeps scraping off your laptop and centralizes logs/results.
+- **Notes:** The workflow will need `NODE_AUTH_TOKEN` (if private packages) and `DATABASE_URL` in repo secrets. Alternatively, a lightweight cron job on a server or a serverless scheduler could be used.
 
 ---
 

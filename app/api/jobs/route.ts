@@ -105,8 +105,8 @@ export async function GET(request: Request) {
       })),
       
       // Legacy fields for backward compatibility
-      logo: undefined,
-      requirements: [],
+      logo: undefined as string | undefined,
+      requirements: [] as string[],
     }))
 
     return NextResponse.json({

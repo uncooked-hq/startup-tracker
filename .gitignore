@@ -40,3 +40,5 @@ next-env.d.ts
 *.db
 *.db-journal
 
+.wf-profile
+.next-dev.log

@@ -327,7 +327,7 @@ export async function GET(request: Request) {
     console.error('Full error:', {
       message: errorMessage,
       stack: errorStack,
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Set' : 'Not set',
+      supabaseUrl: process.env.SUPABASE_URL ? 'Set' : 'Not set',
     })
 
     return NextResponse.json(

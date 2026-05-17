@@ -21,8 +21,7 @@ export const scrapers: Scraper[] = [
   
   // VC Portfolio Job Boards
   new GenericVCScraper('Antler', 'https://careers.antler.co/jobs', 'Antler'),
-  new GenericVCScraper('a16z', 'https://portfoliojobs.a16z.com', 'a16z'),
-  new GenericVCScraper('Index Ventures', 'https://www.indexventures.com/startup-jobs', 'Index Ventures'),
+new GenericVCScraper('Index Ventures', 'https://www.indexventures.com/startup-jobs', 'Index Ventures'),
   new GenericVCScraper('Seedcamp', 'https://talent.seedcamp.com/jobs', 'Seedcamp'),
   new GenericVCScraper('Accel', 'https://jobs.accel.com/', 'Accel'),
   new GenericVCScraper('Sequoia Capital', 'https://www.sequoiacap.com/jobs', 'Sequoia'),

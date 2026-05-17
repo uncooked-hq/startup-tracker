@@ -1,0 +1,38 @@
+service: uncooked-scrapers
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: eu-west-2
+  timeout: 300
+  memorySize: 2048
+  environment:
+    SUPABASE_URL: ${env:SUPABASE_URL}
+    SUPABASE_SERVICE_ROLE_KEY: ${env:SUPABASE_SERVICE_ROLE_KEY}
+
+functions:
+  scrape:
+    handler: handler.scrape
+    events:
+      # Run every 48 hours
+      - schedule:
+          rate: rate(48 hours)
+          enabled: true
+          input:
+            scraperName: "all"
+
+plugins:
+  - serverless-esbuild
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    platform: node
+    target: node20
+    external:
+      - "@sparticuz/chromium"
+    packagerOptions:
+      scripts:
+        - npm install @sparticuz/chromium --save

@@ -1,0 +1,27 @@
+{
+  "name": "uncooked-scrapers-lambda",
+  "version": "1.0.0",
+  "description": "Lambda scrapers for UncookedTracker",
+  "main": "handler.js",
+  "scripts": {
+    "deploy": "serverless deploy",
+    "deploy:prod": "serverless deploy --stage prod",
+    "invoke": "serverless invoke local -f scrape",
+    "logs": "serverless logs -f scrape -t"
+  },
+  "dependencies": {
+    "@sparticuz/chromium": "^131.0.0",
+    "@supabase/supabase-js": "^2.45.4",
+    "cheerio": "^1.0.0",
+    "puppeteer-core": "^23.0.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.145",
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.24.0",
+    "puppeteer": "^24.38.0",
+    "serverless": "^3.39.0",
+    "serverless-esbuild": "^1.54.0",
+    "typescript": "^5.6.0"
+  }
+}

@@ -89,5 +89,22 @@
   .animate-pulse-slow {
     animation: pulse-slow 4s ease-in-out infinite;
   }
+
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(calc(-1 * var(--marquee-width, 50%)));
+    }
+  }
+
+  .animate-marquee {
+    animation: marquee var(--marquee-duration, 40s) linear infinite;
+  }
+
+  .animate-marquee.paused {
+    animation-play-state: paused;
+  }
 }
 

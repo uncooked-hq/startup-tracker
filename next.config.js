@@ -5,6 +5,14 @@ const nextConfig = {
       bodySizeLimit: '2mb',
     },
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 't3.gstatic.com',
+      },
+    ],
+  },
 }
 
 module.exports = nextConfig

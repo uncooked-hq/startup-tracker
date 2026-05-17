@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { AuthProvider } from './components/AuthProvider'
 import { Instrument_Serif } from 'next/font/google'
 import './globals.css'
 
@@ -27,7 +28,9 @@ export default function RootLayout({
         {/* Fontshare: Satoshi (not available in next/font) */}
         <link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap" rel="stylesheet" />
       </head>
-      <body>{children}</body>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   )
 }

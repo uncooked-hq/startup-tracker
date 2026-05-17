@@ -35,6 +35,10 @@ export interface Job {
   // Content
   description?: string | null; // mapped from company_description
   roleDescription?: string | null;
+
+  // Sponsorship & funding
+  offersSponsorship?: boolean | null;
+  fundingDetails?: string | null;
   
   // Dates
   postedAt?: Date | null; // mapped from posting_date
@@ -48,6 +52,10 @@ export interface Job {
   // Sources - array of platforms where this job is listed
   sources?: JobSource[];
   
+  // Vibe check (AI-generated summary)
+  vibeCheck?: string | null;
+  skills?: string[] | null;
+
   // Legacy fields for backward compatibility
   logo?: string;
   requirements?: string[];
@@ -58,4 +66,8 @@ export interface FilterState {
   types: string[];
   modes: string[];
   industry: string | null;
+  accelerator: string | null;
+  region: string | null;
+  seniority: string | null;
+  sponsorship: boolean | null;
 }

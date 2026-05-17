@@ -1,11 +1,39 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Image from 'next/image';
 
 /**
- * Generate a consistent color from a company name.
+ * Manual overrides for companies where the auto-guessed domain is wrong.
+ * Keys are lower-cased company names; values are the real domain.
+ * Add new entries as you find more bad logos.
  */
+const DOMAIN_OVERRIDES: Record<string, string> = {
+  'cartesia': 'cartesia.ai',
+  'black forest labs': 'bfl.ai',
+  'mistral': 'mistral.ai',
+  'mistral ai': 'mistral.ai',
+  'anthropic': 'anthropic.com',
+  'openai': 'openai.com',
+  'xai': 'x.ai',
+  'cohere': 'cohere.com',
+  'hugging face': 'huggingface.co',
+  'deepmind': 'deepmind.google',
+  'google deepmind': 'deepmind.google',
+  'perplexity': 'perplexity.ai',
+  'inflection': 'inflection.ai',
+  'character': 'character.ai',
+  'character.ai': 'character.ai',
+  'replicate': 'replicate.com',
+  'runway': 'runwayml.com',
+  'stability': 'stability.ai',
+  'stability ai': 'stability.ai',
+};
+
+// Order of TLDs to try when no override + no DB-supplied domain.
+// .ai first because most "wrong logo" cases were AI-flavored startups on .ai domains.
+const TLD_CASCADE = ['ai', 'com', 'io', 'co'];
+
 function getColorFromName(name: string): string {
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
@@ -15,9 +43,6 @@ function getColorFromName(name: string): string {
   return `hsl(${hue}, 50%, 35%)`;
 }
 
-/**
- * Get 1-2 letter initials from a company name.
- */
 function getInitials(name: string): string {
   const words = name.trim().split(/\s+/).filter(w => w.length > 0);
   if (words.length === 0) return '?';
@@ -25,11 +50,16 @@ function getInitials(name: string): string {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
-function guessDomain(companyName: string): string {
-  return companyName
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '')
-    .concat('.com');
+function buildCandidateDomains(name: string, explicitDomain: string | null | undefined): string[] {
+  if (explicitDomain) return [explicitDomain]
+  const key = name.trim().toLowerCase()
+  if (DOMAIN_OVERRIDES[key]) return [DOMAIN_OVERRIDES[key]]
+  const slug = key.replace(/[^a-z0-9]/g, '')
+  return TLD_CASCADE.map(tld => `${slug}.${tld}`)
+}
+
+function faviconUrl(domain: string): string {
+  return `https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=128`
 }
 
 export default function CompanyLogo({
@@ -41,38 +71,40 @@ export default function CompanyLogo({
   industry?: string | null;
   domain?: string | null;
 }) {
-  const [showImg, setShowImg] = useState(true);
-  const initials = getInitials(name);
+  const candidates = useMemo(() => buildCandidateDomains(name, domain), [name, domain]);
+  // Index into the candidate list — bumps forward when a try fails.
+  const [tryIdx, setTryIdx] = useState(0);
   const bgColor = getColorFromName(name);
 
-  const logoDomain = domain || guessDomain(name);
-  const logoUrl = `https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${logoDomain}&size=128`;
-
-  if (!showImg) {
+  // Past the end → give up and show initials.
+  if (tryIdx >= candidates.length) {
     return (
       <span
         className="flex items-center justify-center w-10 h-10 rounded-lg text-sm font-bold text-white/90 select-none"
         style={{ backgroundColor: bgColor }}
         aria-label={`${name} logo`}
       >
-        {initials}
+        {getInitials(name)}
       </span>
     );
   }
 
   return (
     <Image
-      src={logoUrl}
+      key={candidates[tryIdx]} // force a re-fetch when we advance to the next TLD
+      src={faviconUrl(candidates[tryIdx])}
       alt={`${name} logo`}
       width={40}
       height={40}
       className="w-10 h-10 rounded-lg object-contain"
       unoptimized
-      onError={() => setShowImg(false)}
+      onError={() => setTryIdx(i => i + 1)}
       onLoad={(e) => {
         const img = e.currentTarget as HTMLImageElement;
+        // Google's faviconV2 returns a 16×16 grey globe when no favicon is found.
+        // Treat as miss and try the next candidate.
         if (img.naturalWidth <= 16 || img.naturalHeight <= 16) {
-          setShowImg(false);
+          setTryIdx(i => i + 1);
         }
       }}
     />

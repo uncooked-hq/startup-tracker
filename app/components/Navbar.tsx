@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from './AuthProvider';
 import { LoginModal } from './LoginModal';
+import Image from 'next/image';
 import { LogOut, ExternalLink } from 'lucide-react';
 import { getPageColor } from '@/lib/page-theme';
 
@@ -25,7 +26,15 @@ export const Navbar: React.FC = () => {
     <>
       <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-4 sm:px-6 sm:py-5 md:px-12 backdrop-blur-xl border-b border-white/5 bg-black/60 transition-all">
         <div className="flex items-center gap-4 sm:gap-8">
-          <Link href="/" className="font-bold text-white tracking-tight text-xl">
+          <Link href="/" className="flex items-center gap-2 font-bold text-white tracking-tight text-xl">
+            <Image
+              src="/uncooked-logo-white.png"
+              alt="Uncooked"
+              width={28}
+              height={28}
+              priority
+              className="w-7 h-7 object-contain"
+            />
             uncooked
           </Link>
           <div className="flex items-center gap-1">

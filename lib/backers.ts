@@ -24,9 +24,7 @@ export const FUNDS = [
   'Sequoia',
 ] as const
 
-export const ALL_BACKERS: readonly string[] = [...ACCELERATORS, ...FUNDS]
-  .slice()
-  .sort()
+export const ALL_BACKERS: string[] = [...ACCELERATORS, ...FUNDS].sort()
 
 /**
  * True when `funding_stage` looks like a backer name rather than a funding

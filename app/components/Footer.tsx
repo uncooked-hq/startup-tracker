@@ -8,9 +8,22 @@ export const Footer: React.FC = () => {
           &copy; {new Date().getFullYear()} uncooked. all rights reserved.
         </p>
         <div className="flex gap-6 text-sm text-neutral-500">
-           <a href="#" className="hover:text-brand transition-colors">twitter</a>
-           <a href="#" className="hover:text-brand transition-colors">instagram</a>
-           <a href="#" className="hover:text-brand transition-colors">manifesto</a>
+           <a
+             href="https://www.linkedin.com/company/uncookedjobs"
+             target="_blank"
+             rel="noopener noreferrer"
+             className="hover:text-brand transition-colors"
+           >
+             linkedin
+           </a>
+           <a
+             href="https://www.instagram.com/uncookedjobs"
+             target="_blank"
+             rel="noopener noreferrer"
+             className="hover:text-brand transition-colors"
+           >
+             instagram
+           </a>
         </div>
       </div>
     </footer>

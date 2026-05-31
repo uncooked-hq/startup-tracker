@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabase, TrackerRoleWithSources } from '@/lib/supabase'
 import { Job } from '@/lib/types'
 import { parseSearch } from '@/lib/search-parser'
+import { isBlacklistedCompany } from '@/lib/company-blacklist'
 
 const REGION_MAP: Record<string, string[]> = {
   'UK & Ireland': ['United Kingdom', 'London', 'Manchester', 'Birmingham', 'Edinburgh', 'Bristol', 'Ireland', 'Dublin'],
@@ -29,10 +30,16 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = (page - 1) * limit
 
-    // Count mode: 'exact' is expensive (full scan with filters) — only use it on
-    // page 1 so the client learns the total once, then rely on "got fewer than
-    // limit" to detect the end during infinite scroll.
-    const countMode = page === 1 ? 'exact' : 'planned'
+    // Count mode picks per workload:
+    //   - 'exact' is a full filtered scan. Only used for filter-only browsing on
+    //     page 1 so the user sees a real total in the header.
+    //   - 'estimated' uses Postgres planner stats — instant but approximate.
+    //     Good enough for search + deep-paginated views where exactness doesn't matter.
+    //   - 'planned' fallback for non-search page>1.
+    const isSearching = !!(search && search.trim())
+    const countMode: 'exact' | 'planned' | 'estimated' = isSearching
+      ? 'estimated'
+      : (page === 1 ? 'exact' : 'planned')
 
     // Build the query
     let query = supabase
@@ -182,32 +189,46 @@ export async function GET(request: Request) {
         }
       }
 
-      // Build the broad search filter — searches every relevant text field
-      // Uses the FULL raw query (so partial words like "londo" work) AND extracted parts
-      const searchTerms = new Set<string>()
-      // Only include the full raw query if we didn't pull out salary (otherwise "$100k engineer"
-      // would try to ilike '$100k engineer' across text fields)
-      if (!parsed.salary) {
-        searchTerms.add(sanitize(raw))
+      // Locations parsed from the query become a structured location filter
+      // (much cheaper than broad ilike across 5 fields).
+      if (parsed.locations.length > 0) {
+        const locOr = parsed.locations
+          .map(l => `location.ilike.%${sanitize(l)}%`)
+          .join(',')
+        if (locOr) query = query.or(locOr)
       }
 
-      // Also add extracted locations, companies, and text query as separate searches
-      parsed.locations.forEach(l => searchTerms.add(sanitize(l)))
-      parsed.companies.forEach(c => searchTerms.add(sanitize(c)))
-      if (parsed.textQuery) {
-        searchTerms.add(sanitize(parsed.textQuery))
+      // Build the broad search filter — kept narrow to stay fast.
+      // Cap at 3 terms × 3 columns = 9 OR conditions max.
+      // We deliberately don't broad-search industry/funding_stage anymore — those
+      // have dedicated filters and pulling them into a wildcard ilike both slowed
+      // queries and produced noisy false-positive matches.
+      const searchTerms: string[] = []
+      const seen = new Set<string>()
+      const pushTerm = (t: string | undefined | null) => {
+        if (!t) return
+        const clean = sanitize(t)
+        if (clean.length < 2 || seen.has(clean)) return
+        seen.add(clean)
+        searchTerms.push(clean)
       }
 
-      // Build a single OR across all search terms × all text fields
-      // This makes "londo" find London jobs, and matches across role/company/location/industry/source
+      // Prefer the extracted text + companies over the raw query — they're tighter.
+      // Raw is only added as a last resort (covers partial-typing cases like "londo").
+      if (parsed.textQuery) pushTerm(parsed.textQuery)
+      parsed.companies.forEach(pushTerm)
+      // Locations are already applied above; don't double-search them.
+      // Only fall back to the raw query when nothing else carried signal AND no salary
+      // was parsed (raw with "$100k engineer" would be a junk ilike).
+      if (searchTerms.length === 0 && !parsed.salary) pushTerm(raw)
+
+      const capped = searchTerms.slice(0, 3)
+
       const orConditions: string[] = []
-      for (const term of searchTerms) {
-        if (!term || term.length < 2) continue
+      for (const term of capped) {
         orConditions.push(`role_title.ilike.%${term}%`)
         orConditions.push(`company_name.ilike.%${term}%`)
         orConditions.push(`location.ilike.%${term}%`)
-        orConditions.push(`industry.ilike.%${term}%`)
-        orConditions.push(`funding_stage.ilike.%${term}%`)
       }
 
       if (orConditions.length > 0) {
@@ -222,6 +243,10 @@ export async function GET(request: Request) {
     }
 
     let total = count || 0
+    // Raw page size BEFORE post-filtering (orphans / blacklist). This is the
+    // authoritative "is there a next page?" signal — post-filter length can
+    // shrink and would falsely tell the client "no more results".
+    let rawBatchSize = trackerRoles?.length ?? 0
 
     // Fuzzy fallback: if a search query returned nothing, try trigram similarity
     if (search && search.trim() && total === 0) {
@@ -243,12 +268,19 @@ export async function GET(request: Request) {
         if (!fuzzyResult.error) {
           trackerRoles = fuzzyResult.data
           total = fuzzyResult.count || 0
+          rawBatchSize = fuzzyResult.data?.length ?? 0
         }
       }
     }
 
-    // Transform TrackerRole data to Job interface
-    const jobs: Job[] = (trackerRoles as TrackerRoleWithSources[] || []).map(role => ({
+    // Transform TrackerRole data to Job interface.
+    // Filter out:
+    //  - orphaned roles with no source children (no application_url → broken modal)
+    //  - blacklisted companies (PMCs / defense primes) that survived past upserts
+    const jobs: Job[] = (trackerRoles as TrackerRoleWithSources[] || [])
+      .filter(role => (role.tracker_role_sources?.length ?? 0) > 0)
+      .filter(role => !isBlacklistedCompany(role.company_name))
+      .map(role => ({
       id: role.id,
       // Company info
       company: role.company_name,
@@ -277,6 +309,7 @@ export async function GET(request: Request) {
       // Sponsorship & funding
       offersSponsorship: (role as any).offers_sponsorship ?? null,
       fundingDetails: (role as any).funding_details ?? null,
+      backers: (role as any).backers ?? null,
 
       // Dates
       postedAt: role.posting_date ? new Date(role.posting_date) : null,
@@ -317,6 +350,11 @@ export async function GET(request: Request) {
         total,
         totalPages: Math.ceil(total / limit),
       },
+      // Authoritative next-page signal. Based on the RAW Supabase fetch size,
+      // not the post-filter jobs.length — orphan/blacklist filtering can shrink
+      // the returned page and would otherwise tell the client "no more results"
+      // when there are still many pages left.
+      hasMore: rawBatchSize >= limit,
     })
   } catch (error) {
     console.error('Error fetching jobs:', error)

@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { isBlacklistedCompany } from './blacklist'
 
 let supabase: SupabaseClient | null = null
 
@@ -35,6 +36,7 @@ export interface TrackerRoleInsert {
   role_description?: string | null
   offers_sponsorship?: boolean | null
   funding_details?: string | null
+  backers?: string[] | null
   posting_date?: string | null
   closing_date?: string | null
   is_active: boolean
@@ -71,18 +73,25 @@ export async function upsertJob(job: {
   role_description?: string | null
   offers_sponsorship?: boolean | null
   funding_details?: string | null
+  backers?: string[] | null
   application_link: string
   source_website: string
   is_active: boolean
 }): Promise<{ success: boolean; isNew: boolean; roleId?: string; error?: string }> {
+  // Skip blacklisted companies entirely so they never enter the DB.
+  if (isBlacklistedCompany(job.company_name)) {
+    return { success: true, isNew: false }
+  }
+
   const supabase = getSupabase()
   const now = new Date().toISOString()
 
   try {
     // 1. Find existing role by company_name + role_title
+    //    Pull backers too so we can union them with any newly-discovered ones.
     const { data: existingRoles, error: findError } = await supabase
       .from('tracker_roles')
-      .select('id')
+      .select('id, backers')
       .eq('company_name', job.company_name)
       .eq('role_title', job.role_title)
       .limit(1)
@@ -114,6 +123,16 @@ export async function upsertJob(job: {
       if (job.funding_details) {
         updateData.funding_details = job.funding_details
       }
+      // Merge backers — keep any we already had, add any newly discovered ones.
+      // Only write if the set actually grew, to avoid no-op updates.
+      const existingBackers: string[] = Array.isArray((existingRoles[0] as any).backers)
+        ? (existingRoles[0] as any).backers
+        : []
+      const incoming = job.backers ?? []
+      const merged = Array.from(new Set([...existingBackers, ...incoming]))
+      if (merged.length > existingBackers.length) {
+        updateData.backers = merged
+      }
       const { error: updateError } = await supabase
         .from('tracker_roles')
         .update(updateData)
@@ -137,6 +156,9 @@ export async function upsertJob(job: {
         role_description: job.role_description ?? null,
         offers_sponsorship: job.offers_sponsorship ?? null,
         funding_details: job.funding_details ?? null,
+        backers: job.backers ?? [],
+        posting_date: job.posting_date ? new Date(job.posting_date).toISOString() : null,
+        closing_date: job.closing_date ? new Date(job.closing_date).toISOString() : null,
         is_active: job.is_active,
         first_seen_at: now,
         last_seen_at: now,
@@ -198,10 +220,15 @@ export async function upsertJob(job: {
 
     return { success: true, isNew: isNewRole, roleId: trackerRoleId }
   } catch (error) {
-    return {
-      success: false,
-      isNew: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+    // Supabase errors arrive as plain objects ({ message, code, details, hint }),
+    // not Error instances — handle both so we don't swallow them as "Unknown error".
+    let message = 'Unknown error'
+    if (error instanceof Error) {
+      message = error.message
+    } else if (error && typeof error === 'object') {
+      const e = error as { message?: string; code?: string; details?: string; hint?: string }
+      message = [e.message, e.code, e.details, e.hint].filter(Boolean).join(' | ') || JSON.stringify(error)
     }
+    return { success: false, isNew: false, error: message }
   }
 }

@@ -29,7 +29,7 @@ function createSemaphore(max: number) {
 
 const jinaSem = createSemaphore(JINA_CONCURRENCY)
 
-async function fetchDescription(url: string): Promise<string | null> {
+export async function fetchDescription(url: string): Promise<string | null> {
   return jinaSem(async () => {
     try {
       const controller = new AbortController()
@@ -95,6 +95,40 @@ export function isExpiredPage(desc: string): boolean {
   // Scan the whole description (capped at 5KB upstream) — expired notices may
   // appear anywhere, including as buttons near the bottom of the page.
   return EXPIRED_PATTERNS.some(p => p.test(desc))
+}
+
+/**
+ * Pull confirmed backer names out of a job description.
+ *
+ * Looks for intro phrases like "funded by", "backed by", "investors include",
+ * "led by", "raised from" — then walks the following clause as a name list.
+ * Best-effort: filters to capitalized tokens to drop boilerplate ("our team",
+ * "this round"), caps at 8 names, truncates at sentence boundaries.
+ *
+ * Returns an empty array on no match — the caller treats that as "unknown".
+ */
+const BACKER_INTRO = /\b(?:funded\s+by|backed\s+by|investors?\s+include|led\s+by|raised\s+from)\s+/i
+
+export function extractBackers(desc: string): string[] {
+  const m = desc.match(BACKER_INTRO)
+  if (!m || m.index === undefined) return []
+
+  // Walk up to 200 chars after the intro; truncate at next sentence break.
+  const tail = desc.slice(m.index + m[0].length, m.index + m[0].length + 200)
+  const window = tail.split(/[.!?\n;:]/)[0]
+
+  const candidates = window.split(/\s*(?:,|&|\sand\s)\s*/i)
+
+  const cleaned = candidates
+    .map(s => s.trim().replace(/^[.,;!?()]+|[.,;!?()]+$/g, ''))
+    .filter(s => s.length >= 2 && s.length <= 50)
+    .filter(s => /^[A-Z]/.test(s))             // proper-noun start
+    .filter(s => /[A-Z][a-z]/.test(s))          // not an all-caps acronym blurb
+    .filter(s => !/^(This|The|That|These|Those|Our|We|They|It|Us|Your|Some|Other|Several|Many)\b/.test(s))
+    .slice(0, 8)
+
+  // De-dupe while preserving order
+  return Array.from(new Set(cleaned))
 }
 
 /**
@@ -186,6 +220,12 @@ export async function enrichDescriptions(jobs: JobData[]): Promise<{ fetched: nu
       // Don't overwrite funding_details if the scraper already set a richer value
       // (e.g. "$30B Series G · Founded 2021" from AI labs or TopStartups)
       if (funding && !job.funding_details) job.funding_details = funding
+      // Merge any "funded by X" backers from the description with whatever the
+      // scraper already declared (e.g. VC portfolio scrapers set the fund itself).
+      const extracted = extractBackers(desc)
+      if (extracted.length > 0) {
+        job.backers = Array.from(new Set([...(job.backers ?? []), ...extracted]))
+      }
       fetched++
     } else {
       failed++

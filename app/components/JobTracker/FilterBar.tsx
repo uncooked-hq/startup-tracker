@@ -4,8 +4,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { FilterState } from '@/lib/types';
 import { ChevronDown, X, SlidersHorizontal, Check } from 'lucide-react';
+import { ALL_BACKERS } from '@/lib/backers';
 
-const ACCELERATORS = ['Antler', 'Earlybird', 'Seedcamp', 'YC'];
+const BACKERS = ALL_BACKERS;
 const ROLE_TYPES = ['Full-time', 'Internship', 'Contract', 'Part-time'];
 const WORK_MODES = ['Remote', 'Hybrid', 'Onsite'];
 const SENIORITY_LEVELS = ['Entry', 'Mid', 'Senior'];
@@ -257,11 +258,11 @@ function MobileFilterSheet({
           </div>
         </div>
 
-        {/* Accelerator */}
+        {/* Accelerator / Fund */}
         <div>
-          <label className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider mb-1.5 block">Accelerator</label>
+          <label className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider mb-1.5 block">Accelerator / Fund</label>
           <div className="flex flex-wrap gap-1.5">
-            {ACCELERATORS.map(a => (
+            {BACKERS.map(a => (
               <button
                 key={a}
                 onClick={() => setFilters(prev => ({ ...prev, accelerator: prev.accelerator === a ? null : a }))}
@@ -293,7 +294,7 @@ function MobileFilterSheet({
         </div>
 
         {/* Actions */}
-        <div className="sticky bottom-0 flex gap-3 pt-3 pb-1 bg-[#111]">
+        <div className="flex gap-3 pt-3 pb-1">
           {hasActive && (
             <button
               onClick={clearAll}
@@ -399,11 +400,11 @@ export const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, indus
           allLabel="All Work Modes"
         />
         <StyledDropdown
-          label="Accelerator"
+          label="Accelerator / Fund"
           value={filters.accelerator}
-          options={ACCELERATORS}
+          options={BACKERS}
           onChange={(val) => setFilters(prev => ({ ...prev, accelerator: val }))}
-          allLabel="All Accelerators"
+          allLabel="All Accelerators & Funds"
         />
         <button
           onClick={() => setFilters(prev => ({ ...prev, sponsorship: prev.sponsorship ? null : true }))}

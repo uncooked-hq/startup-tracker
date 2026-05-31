@@ -15,6 +15,9 @@ export interface JobData {
   role_description?: string | null
   offers_sponsorship?: boolean | null
   funding_details?: string | null
+  // Confirmed backer names (VC funds / accelerators). Set by VC portfolio
+  // scrapers and by description-enricher's "funded by X" extraction.
+  backers?: string[] | null
   application_link: string
   source_website: string
   is_active: boolean

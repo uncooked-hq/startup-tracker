@@ -1,8 +1,17 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { Navbar } from './components/Navbar'
 import { Footer } from './components/Footer'
 import Image from 'next/image'
+
+// Round live job count down to the nearest thousand for the hero copy
+// (4,250 → "4,000+"). Falls through to a literal small number when < 1k.
+function formatJobCount(n: number | null): string {
+  if (n === null) return ''
+  if (n < 1000) return n.toLocaleString()
+  return (Math.floor(n / 1000) * 1000).toLocaleString() + '+'
+}
 
 const COLLEGES = [
   { name: 'University of Oxford', logo: '/logos/Oxford.avif' },
@@ -13,6 +22,14 @@ const COLLEGES = [
 ]
 
 export default function Home() {
+  const [jobCount, setJobCount] = useState<number | null>(null)
+  useEffect(() => {
+    fetch('/api/stats')
+      .then(r => r.json())
+      .then(d => setJobCount(typeof d.count === 'number' ? d.count : null))
+      .catch(() => {})
+  }, [])
+
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-brand selection:text-white">
       <Navbar />
@@ -69,8 +86,10 @@ export default function Home() {
               <span className="relative block h-1.5 w-1.5 rounded-full bg-[#e62b15]" />
             </span>
             <span>
-              or just <span className="font-serif italic text-white">browse</span> the tracker —{' '}
-              <span className="underline decoration-[#e62b15]/40 underline-offset-4 group-hover:decoration-[#e62b15]">1,400+ live startup jobs</span>
+              or just <span className="font-serif italic text-white">browse</span> the tracker:{' '}
+              <span className="underline decoration-[#e62b15]/40 underline-offset-4 group-hover:decoration-[#e62b15]">
+                {jobCount !== null ? `${formatJobCount(jobCount)} live startup jobs` : 'live startup jobs'}
+              </span>
             </span>
             <span className="transition-transform group-hover:translate-x-1">→</span>
           </a>
@@ -79,7 +98,7 @@ export default function Home() {
         {/* College marquee */}
         <section className="w-full max-w-5xl px-6 py-12">
           <p className="text-center text-xs text-neutral-600 uppercase tracking-widest font-semibold mb-8">
-            building community at top universities
+            students &amp; grads from
           </p>
           <div className="relative">
             <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />

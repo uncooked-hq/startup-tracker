@@ -16,10 +16,10 @@ const PHOTOS = [
 ]
 
 const STATS = [
-  { value: '400+', label: 'signups' },
-  { value: '4',    label: 'speakers' },
-  { value: 'KCL',  label: 'venue' },
-  { value: 'sold out', label: 'first event' },
+  { value: '840+', label: 'attendees' },
+  { value: '10',   label: 'speakers' },
+  { value: '4',    label: 'events' },
+  { value: '100%', label: 'sold out' },
 ]
 
 type Testimonial = {
@@ -155,10 +155,16 @@ export default function EventsPage() {
               we built <span className="font-bold text-white">uncooked labs</span> for everyone else. the people building robots. engineering systems. launching rockets. and everything in between.
             </p>
             <p className="text-neutral-300 text-base md:text-lg leading-relaxed">
-              our first event sold out in days at <span className="text-white font-semibold">King&apos;s College London</span>. 400+ signups. speakers from <span className="text-white">Shadow Robot</span>, <span className="text-white">ARIA</span>, <span className="text-white">Unitree</span>, and <span className="text-white">Ex-Humanoid AI</span>.
+              our first event sold out in days at <span className="text-white font-semibold">King&apos;s College London</span>. every event since has done the same. <span className="text-white">Barclays Eagle Labs</span>. <span className="text-white">Cambridge</span>. <span className="text-white">LSE</span>.
+            </p>
+            <p className="text-neutral-300 text-base md:text-lg leading-relaxed">
+              our community has heard from founders, operators, and researchers at <span className="text-white">Shadow Robot</span>. <span className="text-white">ARIA</span>. <span className="text-white">Unitree</span>. <span className="text-white">Dyson</span>. <span className="text-white">Humanoid AI</span>. <span className="text-white">UBYX</span>. <span className="text-white">LSE</span>. <span className="text-white">Artificial Society (YC)</span>.
+            </p>
+            <p className="text-neutral-300 text-base md:text-lg leading-relaxed">
+              exclusive partnerships with the UK&apos;s biggest events. discounted tickets to <span className="text-white font-semibold">Muslim Tech Fest</span>, one of the largest tech conferences in the country. more on the way.
             </p>
             <p className="text-neutral-400 text-base md:text-lg leading-relaxed">
-              this year we&apos;re partnering with some of the best founders, startups, and communities in the UK and beyond.
+              we partner with some of the best founders, startups, and communities in the UK and beyond to bring our community into the best rooms.
             </p>
           </div>
         </section>

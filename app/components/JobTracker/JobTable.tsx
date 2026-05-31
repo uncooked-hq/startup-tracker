@@ -32,11 +32,10 @@ interface JobTableProps {
 //   'hidden sm:table-cell' = hidden on mobile, visible on tablet+
 //   'hidden lg:table-cell' = hidden on mobile+tablet, visible on desktop only
 const headers: { key: keyof Job; label: string; hideClass: string; widthClass: string }[] = [
-  { key: 'role', label: 'Role', hideClass: '', widthClass: 'w-[30%] lg:w-[20%]' },
+  { key: 'role', label: 'Role', hideClass: '', widthClass: 'lg:w-[20%]' },
   { key: 'company', label: 'Company', hideClass: 'hidden sm:table-cell', widthClass: 'w-[20%] lg:w-[14%]' },
   { key: 'location', label: 'Location', hideClass: 'hidden sm:table-cell', widthClass: 'w-[18%] lg:w-[14%]' },
   { key: 'industry', label: 'Industry', hideClass: 'hidden lg:table-cell', widthClass: 'w-[10%]' },
-  { key: 'fundingStage', label: 'Source', hideClass: 'hidden lg:table-cell', widthClass: 'w-[10%]' },
   { key: 'salary', label: 'Salary', hideClass: 'hidden lg:table-cell', widthClass: 'w-[10%]' },
   { key: 'firstSeenAt', label: 'Posted', hideClass: 'hidden sm:table-cell', widthClass: 'w-[8%]' },
 ];
@@ -53,7 +52,7 @@ export const JobTable: React.FC<JobTableProps> = ({ jobs, onJobClick, sortConfig
         <table className="w-full text-left border-collapse table-fixed">
           <thead>
             <tr className="border-b border-white/5 bg-white/[0.02]">
-              <th className="px-2 lg:px-4 py-3 lg:py-5 text-xs font-bold text-neutral-500 uppercase tracking-wider w-10 lg:w-14 text-center">
+              <th className="px-2 lg:px-4 py-3 lg:py-5 text-xs font-bold text-neutral-500 uppercase tracking-wider w-12 lg:w-14 text-center">
                 Logo
               </th>
               {headers.map((header) => (
@@ -62,7 +61,7 @@ export const JobTable: React.FC<JobTableProps> = ({ jobs, onJobClick, sortConfig
                   onClick={() => onSort(header.key)}
                   className={`px-2 lg:px-4 py-3 lg:py-5 text-xs font-bold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition-colors group select-none whitespace-nowrap ${header.hideClass} ${header.widthClass}`}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className={`flex items-center gap-2 ${header.key === 'role' ? 'justify-center sm:justify-start' : ''}`}>
                     {header.label}
                     <span className={`transition-opacity ${sortConfig?.key === header.key ? 'opacity-100 text-brand' : 'opacity-0 group-hover:opacity-50'}`}>
                       {getSortIcon(header.key) || <ArrowUp size={12} />}
@@ -88,7 +87,8 @@ export const JobTable: React.FC<JobTableProps> = ({ jobs, onJobClick, sortConfig
                   </div>
                 </td>
                 {/* Role — always visible. On mobile, shows company + location inline below */}
-                <td className="px-2 lg:px-4 py-3 lg:py-4">
+                {/* max-w-0 forces the cell to honor table-fixed width so truncate works on overflow */}
+                <td className="px-2 lg:px-4 py-3 lg:py-4 max-w-0">
                   <div className="font-bold text-white group-hover:text-brand transition-colors text-sm truncate sm:whitespace-normal">
                     {job.role}
                   </div>
@@ -109,16 +109,6 @@ export const JobTable: React.FC<JobTableProps> = ({ jobs, onJobClick, sortConfig
                   {job.industry ? (
                     <span className="px-2.5 py-1 rounded-full border border-white/5 bg-white/5 text-xs text-neutral-400 font-medium whitespace-nowrap">
                       {job.industry}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-neutral-600">—</span>
-                  )}
-                </td>
-                {/* Source — desktop only */}
-                <td className="px-2 lg:px-4 py-3 lg:py-4 hidden lg:table-cell">
-                  {job.fundingStage ? (
-                    <span className="px-2.5 py-1 rounded-full border border-brand/20 bg-brand/5 text-xs text-brand font-medium whitespace-nowrap">
-                      {job.fundingStage}
                     </span>
                   ) : (
                     <span className="text-xs text-neutral-600">—</span>

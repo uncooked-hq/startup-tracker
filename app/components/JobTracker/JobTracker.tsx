@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Search, LayoutGrid, List, Loader2, ArrowUp, HelpCircle } from 'lucide-react';
+import { Search, Loader2, ArrowUp, HelpCircle, RotateCcw } from 'lucide-react';
 import { Job, FilterState } from '@/lib/types';
-import { JobCard } from './JobCard';
 import { FilterBar, MobileFilterButton } from './FilterBar';
 import { JobModal } from './JobModal';
 import { JobTable } from './JobTable';
@@ -37,7 +36,10 @@ export const JobTracker: React.FC = () => {
     sponsorship: null,
   });
 
-  const debouncedSearch = useDebounce(filters.search, 300);
+  // 200ms feels snappier than the old 300ms — safe to lower now that
+  // AbortController cancels every superseded request, so faster firing doesn't
+  // mean more wasted backend work.
+  const debouncedSearch = useDebounce(filters.search, 200);
 
   // Stable string versions of array filters for use in dependency arrays
   const modesKey = filters.modes.slice().sort().join(',');
@@ -47,7 +49,22 @@ export const JobTracker: React.FC = () => {
   const seniorityKey = filters.seniority || '';
   const sponsorshipKey = filters.sponsorship ? 'true' : '';
 
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
+  const hasActiveFilters = !!(
+    filters.search ||
+    filters.industry ||
+    filters.accelerator ||
+    filters.types.length ||
+    filters.modes.length ||
+    filters.region ||
+    filters.seniority ||
+    filters.sponsorship
+  );
+
+  const resetAll = () => setFilters({
+    search: '', types: [], modes: [],
+    industry: null, accelerator: null, region: null, seniority: null, sponsorship: null,
+  });
+
   const [sortConfig, setSortConfig] = useState<{ key: keyof Job; direction: 'asc' | 'desc' } | null>(null);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   
@@ -95,9 +112,20 @@ export const JobTracker: React.FC = () => {
   // Tracks consecutive failed load-more requests; used to halt the infinite
   // retry loop when the API keeps 500ing (e.g. Supabase timeout on deep offsets).
   const loadMoreFailuresRef = useRef(0);
+  // Cancels any in-flight /api/jobs request when a new one starts. Without this,
+  // a slow search response can land AFTER a faster newer one and clobber state.
+  const abortRef = useRef<AbortController | null>(null);
+  // Authoritative current page, read by the infinite-scroll observer. Avoids
+  // stale-closure bugs where setPagination hadn't propagated yet.
+  const pageRef = useRef(1);
 
   // Fetch jobs from API
   const fetchJobs = useCallback(async (page: number, append: boolean = false) => {
+    // Cancel any in-flight request — stale responses can't clobber newer state
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       if (append) {
         setLoadingMore(true);
@@ -107,7 +135,7 @@ export const JobTracker: React.FC = () => {
         setSearching(true); // subtle indicator when we already have data
       }
       setError(null);
-      
+
       const params = new URLSearchParams({
         page: page.toString(),
         limit: pagination.limit.toString(),
@@ -139,13 +167,16 @@ export const JobTracker: React.FC = () => {
         params.append('sponsorship', 'true');
       }
 
-      const response = await fetch(`/api/jobs?${params.toString()}`);
+      const response = await fetch(`/api/jobs?${params.toString()}`, { signal: controller.signal });
 
       if (!response.ok) {
         throw new Error(`Failed to fetch jobs (HTTP ${response.status})`);
       }
 
       const data = await response.json();
+
+      // If a newer request started while we were awaiting, drop this response.
+      if (controller.signal.aborted) return;
 
       if (append) {
         setJobs(prev => [...prev, ...(data.jobs || [])]);
@@ -154,13 +185,23 @@ export const JobTracker: React.FC = () => {
       }
 
       setPagination(data.pagination);
-      // Determine hasMore from the actual batch size — robust whether or not the
-      // server returned an accurate total count.
-      const batchSize = (data.jobs || []).length;
-      setHasMore(batchSize >= pagination.limit);
+      pageRef.current = page;
+      // Trust the server's hasMore — it knows the raw fetch size before any
+      // post-filter shrinkage (orphans / blacklist), which is what actually
+      // determines whether there are more pages to load. Fallback to batch
+      // size for older API responses that didn't ship the flag.
+      const serverHasMore = (data as { hasMore?: boolean }).hasMore;
+      if (typeof serverHasMore === 'boolean') {
+        setHasMore(serverHasMore);
+      } else {
+        const batchSize = (data.jobs || []).length;
+        setHasMore(batchSize >= pagination.limit);
+      }
       // Reset failure tracker on success
       loadMoreFailuresRef.current = 0;
     } catch (err) {
+      // Aborted by a newer request — silently drop, the newer one owns state
+      if ((err as { name?: string })?.name === 'AbortError') return;
       console.error('Error fetching jobs:', err);
       if (append) {
         // Failed during infinite-scroll append. Stop the observer from hammering
@@ -176,15 +217,20 @@ export const JobTracker: React.FC = () => {
         setError(err instanceof Error ? err.message : 'Failed to load jobs');
       }
     } finally {
-      setLoading(false);
-      setSearching(false);
-      setLoadingMore(false);
+      // Only flip loading flags if this is still the current request — a newer
+      // request will manage its own flags.
+      if (!controller.signal.aborted) {
+        setLoading(false);
+        setSearching(false);
+        setLoadingMore(false);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.limit, debouncedSearch, filters.industry, modesKey, typesKey, acceleratorKey, regionKey, seniorityKey, sponsorshipKey]);
 
   // Initial load and filter changes
   useEffect(() => {
+    pageRef.current = 1;
     setPagination(prev => ({ ...prev, page: 1 }));
     setHasMore(true);
     fetchJobs(1, false);
@@ -194,6 +240,7 @@ export const JobTracker: React.FC = () => {
   // When user logs in, reset and refetch so infinite scroll can kick in
   useEffect(() => {
     if (isLoggedIn) {
+      pageRef.current = 1;
       setPagination(prev => ({ ...prev, page: 1 }));
       setHasMore(true);
       fetchJobs(1, false);
@@ -205,8 +252,12 @@ export const JobTracker: React.FC = () => {
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
-          const nextPage = pagination.page + 1;
+        // Block while ANY fetch is in flight — including search/filter refetches
+        // (`searching`), otherwise the observer can fire mid-search and append
+        // the wrong page to results.
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore && !searching) {
+          const nextPage = pageRef.current + 1;
+          pageRef.current = nextPage;
           setPagination(prev => ({ ...prev, page: nextPage }));
           fetchJobs(nextPage, true);
         }
@@ -224,7 +275,7 @@ export const JobTracker: React.FC = () => {
         observer.unobserve(currentTarget);
       }
     };
-  }, [hasMore, loading, loadingMore, pagination.page, fetchJobs]);
+  }, [hasMore, loading, loadingMore, searching, fetchJobs]);
 
   // Fetch all distinct industries once on mount
   const [availableIndustries, setAvailableIndustries] = useState<string[]>([]);
@@ -327,23 +378,6 @@ export const JobTracker: React.FC = () => {
 
                 <div className="h-6 w-px bg-white/10 mx-1"></div>
 
-                <div className="flex items-center gap-1 p-1 bg-white/5 rounded-full border border-white/5">
-                  <button
-                    onClick={() => setViewMode('grid')}
-                    className={`p-2 rounded-full transition-all ${viewMode === 'grid' ? 'bg-white text-black shadow-lg' : 'text-neutral-500 hover:text-white'}`}
-                    title="Card View"
-                  >
-                    <LayoutGrid size={16} />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('table')}
-                    className={`p-2 rounded-full transition-all ${viewMode === 'table' ? 'bg-white text-black shadow-lg' : 'text-neutral-500 hover:text-white'}`}
-                    title="Table View"
-                  >
-                    <List size={16} />
-                  </button>
-                </div>
-
                 <button
                   onClick={replayTour}
                   className="p-2 text-neutral-600 hover:text-white transition-colors"
@@ -369,8 +403,18 @@ export const JobTracker: React.FC = () => {
               placeholder='try "remote engineer in london" or "fintech internships"...'
               value={filters.search}
               onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-              className="relative w-full h-14 pl-14 pr-6 bg-dark-input text-white rounded-2xl border border-white/10 focus:outline-none focus:border-brand/50 focus:ring-1 focus:ring-brand/50 transition-all placeholder:text-neutral-600 font-medium"
+              className="relative w-full h-14 pl-14 pr-28 bg-dark-input text-white rounded-2xl border border-white/10 focus:outline-none focus:border-brand/50 focus:ring-1 focus:ring-brand/50 transition-all placeholder:text-neutral-600 font-medium"
             />
+            {hasActiveFilters && (
+              <button
+                onClick={resetAll}
+                title="Reset search and filters"
+                className="absolute right-3 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-full transition-all"
+              >
+                <RotateCcw size={12} />
+                Reset
+              </button>
+            )}
           </div>
 
           {/* Filters — desktop only. Mobile uses MobileFilterButton in bottom bar */}
@@ -402,30 +446,16 @@ export const JobTracker: React.FC = () => {
           </div>
         ) : filteredAndSortedJobs.length > 0 ? (
           <>
-            {viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 animate-fade-in-up">
-                {filteredAndSortedJobs.map(job => (
-                  <JobCard
-                    key={job.id}
-                    job={job}
-                    onClick={setSelectedJob}
-                    saved={isLoggedIn && isSaved(job.id)}
-                    onToggleSave={isLoggedIn ? () => toggleSave(job.id) : undefined}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="animate-fade-in-up">
-                <JobTable
-                  jobs={filteredAndSortedJobs}
-                  onJobClick={setSelectedJob}
-                  sortConfig={sortConfig}
-                  onSort={handleSort}
-                  isSaved={isLoggedIn ? isSaved : undefined}
-                  onToggleSave={isLoggedIn ? toggleSave : undefined}
-                />
-              </div>
-            )}
+            <div className="animate-fade-in-up">
+              <JobTable
+                jobs={filteredAndSortedJobs}
+                onJobClick={setSelectedJob}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                isSaved={isLoggedIn ? isSaved : undefined}
+                onToggleSave={isLoggedIn ? toggleSave : undefined}
+              />
+            </div>
             
             {/* Infinite scroll trigger */}
             <div ref={observerTarget} className="h-20 flex items-center justify-center">
@@ -447,7 +477,7 @@ export const JobTracker: React.FC = () => {
             <p className="text-xl font-medium mb-2">no roles found matching your vibe.</p>
             <p className="text-sm mb-6 opacity-60">try adjusting your search filters</p>
             <button 
-              onClick={() => setFilters({ search: '', types: [], modes: [], industry: null, accelerator: null, region: null, seniority: null, sponsorship: null })}
+              onClick={resetAll}
               className="px-6 py-2 bg-white text-black font-bold rounded-full hover:bg-neutral-200 transition-colors"
             >
               clear all filters
@@ -480,8 +510,17 @@ export const JobTracker: React.FC = () => {
               placeholder="e.g. remote engineer in london..."
               value={filters.search}
               onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-              className="w-full h-12 pl-11 pr-4 bg-[#141414] text-white rounded-xl border border-white/10 focus:outline-none focus:border-brand/50 transition-all placeholder:text-neutral-600 font-medium text-sm"
+              className={`w-full h-12 pl-11 ${hasActiveFilters ? 'pr-11' : 'pr-4'} bg-[#141414] text-white rounded-xl border border-white/10 focus:outline-none focus:border-brand/50 transition-all placeholder:text-neutral-600 font-medium text-sm`}
             />
+            {hasActiveFilters && (
+              <button
+                onClick={resetAll}
+                aria-label="Reset search and filters"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-all"
+              >
+                <RotateCcw size={14} />
+              </button>
+            )}
           </div>
           <MobileFilterButton filters={filters} setFilters={setFilters} industries={availableIndustries} />
         </div>

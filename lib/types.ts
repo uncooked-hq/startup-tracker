@@ -39,6 +39,10 @@ export interface Job {
   // Sponsorship & funding
   offersSponsorship?: boolean | null;
   fundingDetails?: string | null;
+
+  // Confirmed backers (VC funds / accelerators). Empty/null when unknown —
+  // the modal hides the "Backed by" tag in that case.
+  backers?: string[] | null;
   
   // Dates
   postedAt?: Date | null; // mapped from posting_date

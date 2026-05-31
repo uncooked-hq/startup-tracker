@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Job } from '@/lib/types';
-import { X, MapPin, Briefcase, DollarSign, Building, ExternalLink, Link2, Calendar } from 'lucide-react';
+import { X, MapPin, Briefcase, DollarSign, Building, ExternalLink } from 'lucide-react';
 import CompanyLogo from '../CompanyLogo';
 import { BookmarkButton } from '../BookmarkButton';
 
@@ -110,9 +110,17 @@ export const JobModal: React.FC<JobModalProps> = ({ job, onClose, saved, onToggl
                   Level: {job.roleLevel}
                 </span>
               )}
+              {/* funding_stage is a source/category label (e.g. "Antler", "AI Lab",
+                  "Built In") — display as a neutral tag. The real backer tag below
+                  is sourced from job.backers, populated only when we have confirmed data. */}
               {job.fundingStage && (
                 <span className="px-3 py-1.5 text-xs text-neutral-300 bg-white/5 border border-white/5 rounded-full">
                   {job.fundingStage}
+                </span>
+              )}
+              {job.backers && job.backers.length > 0 && (
+                <span className="px-3 py-1.5 text-xs text-brand bg-brand/5 border border-brand/20 rounded-full">
+                  Backed by {job.backers.join(', ')}
                 </span>
               )}
               {job.offersEquity && (
@@ -176,39 +184,6 @@ export const JobModal: React.FC<JobModalProps> = ({ job, onClose, saved, onToggl
           )}
 
 
-          {/* Sources */}
-          {job.sources && job.sources.length > 0 && (
-            <div className="space-y-3 md:space-y-4">
-              <h3 className="text-base md:text-lg font-serif italic text-white/80 flex items-center gap-2">
-                <Link2 size={18} /> found on {job.sources.length} platform{job.sources.length > 1 ? 's' : ''}
-              </h3>
-              <div className="space-y-2">
-                {job.sources.map((source) => (
-                  <a
-                    key={source.id}
-                    href={source.application_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-between p-3 md:p-4 rounded-xl md:rounded-2xl bg-white/5 border border-white/5 hover:border-brand/30 hover:bg-white/10 transition-all group min-w-0"
-                  >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-brand/10 rounded-xl border border-brand/20 text-brand font-bold text-sm">
-                        {source.source.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-medium text-white truncate">{source.source}</div>
-                        <div className="text-xs text-neutral-500 flex items-center gap-1">
-                          <Calendar size={10} />
-                          Last seen: {new Date(source.last_seen_at).toLocaleDateString()}
-                        </div>
-                      </div>
-                    </div>
-                    <ExternalLink size={16} className="flex-shrink-0 text-neutral-500 group-hover:text-brand transition-colors ml-2" />
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Footer Actions */}
@@ -219,7 +194,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, onClose, saved, onToggl
           >
             close
           </button>
-          {job.sources && job.sources.length > 0 && (
+          {job.sources && job.sources.length > 0 && job.sources[0].application_url && (
             <a
               href={job.sources[0].application_url}
               target="_blank"

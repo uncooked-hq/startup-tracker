@@ -80,7 +80,7 @@ export default function CompanyLogo({
   if (tryIdx >= candidates.length) {
     return (
       <span
-        className="flex items-center justify-center w-10 h-10 rounded-lg text-sm font-bold text-white/90 select-none"
+        className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-lg text-sm font-bold text-white/90 select-none"
         style={{ backgroundColor: bgColor }}
         aria-label={`${name} logo`}
       >
@@ -96,7 +96,7 @@ export default function CompanyLogo({
       alt={`${name} logo`}
       width={40}
       height={40}
-      className="w-10 h-10 rounded-lg object-contain"
+      className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-contain"
       unoptimized
       onError={() => setTryIdx(i => i + 1)}
       onLoad={(e) => {

@@ -3,13 +3,11 @@
 
 generator client {
   provider = "prisma-client-js"
-  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["job_tracker"]
 }
 
 model Job {
@@ -37,7 +35,6 @@ model Job {
   @@index([is_active])
   @@index([source_website])
   @@index([posting_date])
-  @@schema("job_tracker")
 }
 
 // Represents real jobs regardless of source
@@ -68,6 +65,13 @@ model TrackerRole {
   // Content
   company_description  String?
   role_description     String?
+
+  // Confirmed backers (VC funds / accelerators). Populated by:
+  //   - VC portfolio scrapers (Antler, Accel, …) that scrape boards where every
+  //     listed company is, by definition, in that fund's portfolio
+  //   - description-enricher's `funded by X` / `backed by X` extractor
+  // Empty array means "no confirmed backer info" — UI hides the tag in that case.
+  backers              String[] @default([])
   
   // Dates
   posting_date         DateTime?
@@ -90,7 +94,6 @@ model TrackerRole {
   @@index([company_name])
   @@index([role_title])
   @@index([last_seen_at])
-  @@schema("job_tracker")
   @@map("tracker_roles")
 }
 
@@ -128,7 +131,6 @@ model TrackerRoleSource {
   @@index([source])
   @@index([last_seen_at])
   @@index([scrape_status])
-  @@schema("job_tracker")
   @@map("tracker_role_sources")
 }
 

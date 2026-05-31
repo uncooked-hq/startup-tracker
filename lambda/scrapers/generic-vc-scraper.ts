@@ -394,6 +394,10 @@ export class GenericVCScraper extends BaseScraper {
           industry,
           location,
           funding_stage: this.fundingStage,
+          // Don't infer backers from the source board — many VC portfolio
+          // job boards list non-portfolio companies (partners, "of interest",
+          // paid placements, etc). Real backers only come from the description
+          // enricher's "funded by X" extraction.
           role_title: this.normalizeText(title),
           role_type: 'Full-time',
           role_level: this.extractRoleLevel(title, job.parentText),

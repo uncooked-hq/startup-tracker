@@ -34,11 +34,25 @@ export const AI_LABS: AILabEntry[] = [
   { type: 'workable',   display: 'Hugging Face',    slug: 'huggingface', foundedYear: 2016, lastFunding: '$235M Series D',     lastFundingDate: '2023-08-24' }, // @ $4.5B valuation
 ]
 
+// Extract the round name from a lastFunding string ("$30B Series G" → "Series G",
+// "$122B" → null, "Google subsidiary" → null, "Pre-seed" → "Pre-Seed").
+function extractRoundFromFunding(lastFunding: string): string | null {
+  const m = lastFunding.match(/\b(pre-?seed|seed|series\s+([a-h])|ipo)\b/i)
+  if (!m) return null
+  const raw = m[1].toLowerCase()
+  if (raw.startsWith('series')) return `Series ${m[2].toUpperCase()}`
+  if (raw === 'pre-seed' || raw === 'preseed') return 'Pre-Seed'
+  if (raw === 'seed') return 'Seed'
+  if (raw === 'ipo') return 'IPO'
+  return null
+}
+
 export function buildAILabScraper(entry: AILabEntry): Scraper {
   const meta = {
     foundedYear: entry.foundedYear,
     lastFunding: entry.lastFunding,
     lastFundingDate: entry.lastFundingDate,
+    fundingRound: extractRoundFromFunding(entry.lastFunding),
   }
   const tag = 'AI Lab'
   if (entry.type === 'greenhouse') return new GreenhouseScraper(entry.display, entry.slug, tag, meta)

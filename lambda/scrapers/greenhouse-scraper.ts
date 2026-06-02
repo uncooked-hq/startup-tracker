@@ -10,6 +10,7 @@
 
 import { BaseScraper } from './base-scraper'
 import { classifyIndustry } from './classify'
+import { extractSalaryFromBody } from './salary'
 import type { ScraperResult, JobData } from './types'
 
 interface GreenhouseJob {
@@ -69,6 +70,7 @@ export interface CompanyMeta {
   foundedYear?: number
   lastFunding?: string            // e.g. "$30B Series G", "$122B"
   lastFundingDate?: string | null // ISO date "YYYY-MM-DD" when round closed
+  fundingRound?: string | null    // structured round (Series G, Seed, …) for filtering
 }
 
 /**
@@ -154,9 +156,13 @@ export class GreenhouseScraper extends BaseScraper {
 
         if (!BaseScraper.isValidJob(title, company, link)) continue
 
-        const description = j.content ? stripHtml(j.content).slice(0, 800) : ''
+        // Strip the full body once; description uses the truncated head, salary
+        // scanner uses the full text (pay sections often sit near the bottom).
+        const fullBody = j.content ? stripHtml(j.content) : ''
+        const description = fullBody.slice(0, 800)
         const dept = j.departments?.[0]?.name || ''
         const { industry } = classifyIndustry(company, title, dept + ' ' + description)
+        const salary = extractSalaryFromBody(fullBody)
 
         const postedStr = j.first_published || j.updated_at
         const posted = postedStr ? new Date(postedStr) : new Date()
@@ -167,11 +173,12 @@ export class GreenhouseScraper extends BaseScraper {
           location,
           funding_stage: this.tag,
           funding_details: buildFundingDetails(this.tag, this.meta),
+          funding_round: this.meta?.fundingRound ?? null,
           role_title: title,
           role_type: inferRoleType(title),
           role_level: inferRoleLevel(title),
           work_mode: inferWorkMode(location),
-          compensation: 'Not specified',
+          compensation: salary || 'Not specified',
           equity: null,
           posting_date: posted,
           closing_date: null,

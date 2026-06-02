@@ -184,6 +184,7 @@ export class AshbyScraper extends BaseScraper {
           location,
           funding_stage: this.tag,
           funding_details: buildFundingDetails(this.tag, this.meta),
+          funding_round: this.meta?.fundingRound ?? null,
           role_title: title,
           role_type: mapEmploymentType(j.employmentType),
           role_level: inferRoleLevel(title),

@@ -1,18 +1,19 @@
 import type { Scraper } from './types'
 import { GenericVCScraper } from './generic-vc-scraper'
-import { WelcomeToTheJungleScraper } from './welcometothejungle-scraper'
+// Shelved (kept in repo, not run): WelcomeToTheJungle, HardwareFYI.
+// import { WelcomeToTheJungleScraper } from './welcometothejungle-scraper'
+// import { HardwareFYIScraper } from './hardwarefyi-scraper'
 import { SeedcampScraper } from './seedcamp-scraper'
 import { YCScraper } from './yc-scraper'
 import { WorkAtAStartupJinaScraper } from './workatastartup-jina-scraper'
 import { StartupJobsJinaScraper } from './startupjobs-jina-scraper'
 import { TopStartupsScraper } from './topstartups-scraper'
 import { BuiltInScraper } from './builtin-scraper'
-import { HardwareFYIScraper } from './hardwarefyi-scraper'
 import { buildAllAILabScrapers } from './ai-labs'
 
 export const scrapers: Scraper[] = [
   // Dedicated scrapers (no browser needed)
-  new WelcomeToTheJungleScraper(),
+  // new WelcomeToTheJungleScraper(), // shelved
   new SeedcampScraper(),
   new YCScraper(),
 
@@ -23,7 +24,7 @@ export const scrapers: Scraper[] = [
   // Cheerio-based scrapers (plain HTML)
   new TopStartupsScraper(),
   new BuiltInScraper(),
-  new HardwareFYIScraper(),
+  // new HardwareFYIScraper(), // shelved
 
   // AI Labs (ATS APIs: Greenhouse / Ashby / Workable)
   ...buildAllAILabScrapers(),

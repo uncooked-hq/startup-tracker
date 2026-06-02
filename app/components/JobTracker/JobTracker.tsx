@@ -34,6 +34,8 @@ export const JobTracker: React.FC = () => {
     region: null,
     seniority: null,
     sponsorship: null,
+    companyStage: null,
+    startupHub: null,
   });
 
   // 200ms feels snappier than the old 300ms — safe to lower now that
@@ -48,6 +50,8 @@ export const JobTracker: React.FC = () => {
   const regionKey = filters.region || '';
   const seniorityKey = filters.seniority || '';
   const sponsorshipKey = filters.sponsorship ? 'true' : '';
+  const companyStageKey = filters.companyStage || '';
+  const startupHubKey = filters.startupHub || '';
 
   const hasActiveFilters = !!(
     filters.search ||
@@ -57,12 +61,15 @@ export const JobTracker: React.FC = () => {
     filters.modes.length ||
     filters.region ||
     filters.seniority ||
-    filters.sponsorship
+    filters.sponsorship ||
+    filters.companyStage ||
+    filters.startupHub
   );
 
   const resetAll = () => setFilters({
     search: '', types: [], modes: [],
     industry: null, accelerator: null, region: null, seniority: null, sponsorship: null,
+    companyStage: null, startupHub: null,
   });
 
   const [sortConfig, setSortConfig] = useState<{ key: keyof Job; direction: 'asc' | 'desc' } | null>(null);
@@ -166,6 +173,12 @@ export const JobTracker: React.FC = () => {
       if (filters.sponsorship) {
         params.append('sponsorship', 'true');
       }
+      if (filters.companyStage) {
+        params.append('company_stage', filters.companyStage);
+      }
+      if (filters.startupHub) {
+        params.append('startup_hub', filters.startupHub);
+      }
 
       const response = await fetch(`/api/jobs?${params.toString()}`, { signal: controller.signal });
 
@@ -226,7 +239,7 @@ export const JobTracker: React.FC = () => {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination.limit, debouncedSearch, filters.industry, modesKey, typesKey, acceleratorKey, regionKey, seniorityKey, sponsorshipKey]);
+  }, [pagination.limit, debouncedSearch, filters.industry, modesKey, typesKey, acceleratorKey, regionKey, seniorityKey, sponsorshipKey, companyStageKey, startupHubKey]);
 
   // Initial load and filter changes
   useEffect(() => {
@@ -235,7 +248,7 @@ export const JobTracker: React.FC = () => {
     setHasMore(true);
     fetchJobs(1, false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, filters.industry, modesKey, typesKey, acceleratorKey, regionKey, seniorityKey, sponsorshipKey]);
+  }, [debouncedSearch, filters.industry, modesKey, typesKey, acceleratorKey, regionKey, seniorityKey, sponsorshipKey, companyStageKey, startupHubKey]);
 
   // When user logs in, reset and refetch so infinite scroll can kick in
   useEffect(() => {

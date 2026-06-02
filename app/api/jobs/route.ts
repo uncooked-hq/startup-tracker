@@ -3,6 +3,7 @@ import { supabase, TrackerRoleWithSources } from '@/lib/supabase'
 import { Job } from '@/lib/types'
 import { parseSearch } from '@/lib/search-parser'
 import { isBlacklistedCompany } from '@/lib/company-blacklist'
+import { findHub } from '@/lib/startup-hubs'
 
 const REGION_MAP: Record<string, string[]> = {
   'UK & Ireland': ['United Kingdom', 'London', 'Manchester', 'Birmingham', 'Edinburgh', 'Bristol', 'Ireland', 'Dublin'],
@@ -26,6 +27,8 @@ export async function GET(request: Request) {
     const region = searchParams.get('region')
     const search = searchParams.get('search')
     const sponsorship = searchParams.get('sponsorship')
+    const companyStage = searchParams.get('company_stage')
+    const startupHub = searchParams.get('startup_hub')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = (page - 1) * limit
@@ -109,6 +112,20 @@ export async function GET(request: Request) {
 
     if (sponsorship === 'true') {
       query = query.eq('offers_sponsorship', true)
+    }
+
+    if (companyStage && companyStage !== 'all') {
+      query = query.eq('funding_round', companyStage)
+    }
+
+    if (startupHub && startupHub !== 'all') {
+      const hub = findHub(startupHub)
+      if (hub) {
+        const orClause = hub.patterns
+          .map(p => `location.ilike.%${p.replace(/[%_\\(),.]/g, '')}%`)
+          .join(',')
+        query = query.or(orClause)
+      }
     }
 
     if (region && region !== 'all' && REGION_MAP[region]) {
@@ -309,6 +326,7 @@ export async function GET(request: Request) {
       // Sponsorship & funding
       offersSponsorship: (role as any).offers_sponsorship ?? null,
       fundingDetails: (role as any).funding_details ?? null,
+      fundingRound: (role as any).funding_round ?? null,
       backers: (role as any).backers ?? null,
 
       // Dates

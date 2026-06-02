@@ -15,6 +15,10 @@ export interface JobData {
   role_description?: string | null
   offers_sponsorship?: boolean | null
   funding_details?: string | null
+  // Structured funding round name (Pre-Seed, Seed, Series A…G, IPO).
+  // Populated by AI lab scrapers from `lastFunding` + by description-enricher.
+  // Powers the Company Stage filter; funding_details still drives display.
+  funding_round?: string | null
   // Confirmed backer names (VC funds / accelerators). Set by VC portfolio
   // scrapers and by description-enricher's "funded by X" extraction.
   backers?: string[] | null

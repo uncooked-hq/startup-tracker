@@ -39,6 +39,9 @@ export interface Job {
   // Sponsorship & funding
   offersSponsorship?: boolean | null;
   fundingDetails?: string | null;
+  // Structured round name (Pre-Seed, Seed, Series A…G, IPO) for filtering.
+  // fundingDetails still drives the display bubbles.
+  fundingRound?: string | null;
 
   // Confirmed backers (VC funds / accelerators). Empty/null when unknown —
   // the modal hides the "Backed by" tag in that case.
@@ -74,4 +77,6 @@ export interface FilterState {
   region: string | null;
   seniority: string | null;
   sponsorship: boolean | null;
+  companyStage: string | null;   // funding_round (Pre-Seed, Seed, Series A…G, IPO)
+  startupHub: string | null;     // curated hub label (see lib/startup-hubs.ts)
 }

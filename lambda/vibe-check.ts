@@ -22,6 +22,10 @@ const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SE
 const GROQ_KEY = process.env.GROQ_API_KEY!
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const MODEL = 'llama-3.1-8b-instant'
+// 8 is intentionally aggressive vs Groq's ~30 RPM free tier. Throughput math:
+// concurrency 2 doubled per-job success but quadrupled wall-time, so net jobs/min
+// was worse. With 8, we accept more 429s per pass and just rely on re-runs
+// (the SELECT filters vibe_check IS NULL, so failed jobs queue back up).
 const GROQ_CONCURRENCY = 8
 
 const PROMPT = `You are a chill career advisor writing for a startup job board aimed at students and young professionals. Given a job description, produce a JSON object with two fields:
@@ -53,7 +57,7 @@ function createSemaphore(max: number) {
   }
 }
 
-const groqSem = createSemaphore(4) // Free tier: ~30 RPM, ~6000 TPM
+const groqSem = createSemaphore(GROQ_CONCURRENCY) // Free tier: ~30 RPM, ~6000 TPM
 
 // --- Groq summarization ---
 

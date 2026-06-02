@@ -36,6 +36,7 @@ export interface TrackerRoleInsert {
   role_description?: string | null
   offers_sponsorship?: boolean | null
   funding_details?: string | null
+  funding_round?: string | null
   backers?: string[] | null
   posting_date?: string | null
   closing_date?: string | null
@@ -73,6 +74,7 @@ export async function upsertJob(job: {
   role_description?: string | null
   offers_sponsorship?: boolean | null
   funding_details?: string | null
+  funding_round?: string | null
   backers?: string[] | null
   application_link: string
   source_website: string
@@ -123,6 +125,15 @@ export async function upsertJob(job: {
       if (job.funding_details) {
         updateData.funding_details = job.funding_details
       }
+      if (job.funding_round) {
+        updateData.funding_round = job.funding_round
+      }
+      // Backfill compensation_text only when the new value is real (not the
+      // 'Not specified' placeholder). Avoids overwriting a previously-extracted
+      // salary with the default on scrapers that didn't manage to extract one.
+      if (job.compensation && job.compensation !== 'Not specified') {
+        updateData.compensation_text = job.compensation
+      }
       // Merge backers — keep any we already had, add any newly discovered ones.
       // Only write if the set actually grew, to avoid no-op updates.
       const existingBackers: string[] = Array.isArray((existingRoles[0] as any).backers)
@@ -156,6 +167,7 @@ export async function upsertJob(job: {
         role_description: job.role_description ?? null,
         offers_sponsorship: job.offers_sponsorship ?? null,
         funding_details: job.funding_details ?? null,
+        funding_round: job.funding_round ?? null,
         backers: job.backers ?? [],
         posting_date: job.posting_date ? new Date(job.posting_date).toISOString() : null,
         closing_date: job.closing_date ? new Date(job.closing_date).toISOString() : null,

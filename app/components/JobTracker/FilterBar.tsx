@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { FilterState } from '@/lib/types';
 import { ChevronDown, X, SlidersHorizontal, Check } from 'lucide-react';
 import { ALL_BACKERS } from '@/lib/backers';
+import { HUB_LABELS, FUNDING_ROUNDS } from '@/lib/startup-hubs';
 
 const BACKERS = ALL_BACKERS;
 const ROLE_TYPES = ['Full-time', 'Internship', 'Contract', 'Part-time'];
@@ -37,7 +38,12 @@ function StyledDropdown({
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
+  // Drives the bottom chevron hint: only show when the list overflows AND user
+  // hasn't reached the bottom. Without this the panel looks like the full
+  // option set (the scrollbar is hidden by .no-scrollbar).
+  const [showScrollHint, setShowScrollHint] = useState(false);
   const isActive = !!value;
 
   // Position the panel below the button
@@ -46,6 +52,23 @@ function StyledDropdown({
     const rect = btnRef.current.getBoundingClientRect();
     setPos({ top: rect.bottom + 6, left: rect.left });
   }, [open]);
+
+  // Recompute scroll-hint visibility after panel mounts / options change
+  useEffect(() => {
+    if (!open) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const hasOverflow = el.scrollHeight > el.clientHeight + 1;
+    const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 4;
+    setShowScrollHint(hasOverflow && !atBottom);
+  }, [open, options]);
+
+  const onPanelScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 4;
+    setShowScrollHint(!atBottom && el.scrollHeight > el.clientHeight + 1);
+  };
 
   // Close on click outside
   useEffect(() => {
@@ -71,33 +94,44 @@ function StyledDropdown({
   const panel = open ? createPortal(
     <div
       ref={panelRef}
-      className="fixed min-w-[180px] max-h-[280px] overflow-y-auto rounded-xl bg-[#141414] border border-white/10 shadow-2xl shadow-black/60 py-1 no-scrollbar"
+      className="fixed min-w-[180px] rounded-xl bg-[#141414] border border-white/10 shadow-2xl shadow-black/60 overflow-hidden"
       style={{ top: pos.top, left: pos.left, zIndex: 9999 }}
     >
-      <button
-        onClick={() => { onChange(null); setOpen(false); }}
-        className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium transition-colors ${
-          !value ? 'text-brand' : 'text-neutral-400 hover:text-white hover:bg-white/5'
-        }`}
+      <div
+        ref={scrollRef}
+        onScroll={onPanelScroll}
+        className="max-h-[280px] overflow-y-auto py-1 no-scrollbar"
       >
-        {allLabel || `All ${label}`}
-        {!value && <Check size={12} className="text-brand" />}
-      </button>
-
-      <div className="h-px bg-white/5 mx-2 my-1" />
-
-      {options.map(opt => (
         <button
-          key={opt}
-          onClick={() => { onChange(opt); setOpen(false); }}
+          onClick={() => { onChange(null); setOpen(false); }}
           className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium transition-colors ${
-            value === opt ? 'text-brand' : 'text-neutral-400 hover:text-white hover:bg-white/5'
+            !value ? 'text-brand' : 'text-neutral-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          {opt}
-          {value === opt && <Check size={12} className="text-brand" />}
+          {allLabel || `All ${label}`}
+          {!value && <Check size={12} className="text-brand" />}
         </button>
-      ))}
+
+        <div className="h-px bg-white/5 mx-2 my-1" />
+
+        {options.map(opt => (
+          <button
+            key={opt}
+            onClick={() => { onChange(opt); setOpen(false); }}
+            className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium transition-colors ${
+              value === opt ? 'text-brand' : 'text-neutral-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            {opt}
+            {value === opt && <Check size={12} className="text-brand" />}
+          </button>
+        ))}
+      </div>
+      {showScrollHint && (
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-7 bg-gradient-to-t from-[#141414] via-[#141414]/90 to-transparent flex items-end justify-center pb-1">
+          <ChevronDown size={12} className="text-neutral-400 animate-bounce" />
+        </div>
+      )}
     </div>,
     document.body
   ) : null;
@@ -134,15 +168,15 @@ function MobileFilterSheet({
   onClose: () => void;
 }) {
   const clearAll = () => {
-    setFilters(prev => ({ ...prev, types: [], modes: [], industry: null, accelerator: null, region: null, seniority: null, sponsorship: null }));
+    setFilters(prev => ({ ...prev, types: [], modes: [], industry: null, accelerator: null, region: null, seniority: null, sponsorship: null, companyStage: null, startupHub: null }));
   };
 
-  const hasActive = filters.industry || filters.accelerator || filters.types.length > 0 || filters.modes.length > 0 || filters.region || filters.seniority || filters.sponsorship;
+  const hasActive = filters.industry || filters.accelerator || filters.types.length > 0 || filters.modes.length > 0 || filters.region || filters.seniority || filters.sponsorship || filters.companyStage || filters.startupHub;
 
   return (
     <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="w-full bg-[#111] border-t border-white/10 rounded-t-2xl p-4 pb-24 space-y-4 max-h-[95vh] overflow-y-auto"
+        className="w-full bg-[#111] border-t border-white/10 rounded-t-2xl p-4 pb-24 space-y-4 max-h-[65vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -278,6 +312,46 @@ function MobileFilterSheet({
           </div>
         </div>
 
+        {/* Company Stage */}
+        <div>
+          <label className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider mb-1.5 block">Company Stage</label>
+          <div className="flex flex-wrap gap-1.5">
+            {FUNDING_ROUNDS.map(r => (
+              <button
+                key={r}
+                onClick={() => setFilters(prev => ({ ...prev, companyStage: prev.companyStage === r ? null : r }))}
+                className={`px-3 py-1.5 text-xs font-bold rounded-full border transition-all ${
+                  filters.companyStage === r
+                    ? 'bg-brand text-white border-brand'
+                    : 'bg-white/5 text-neutral-400 border-white/5'
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Startup Hub */}
+        <div>
+          <label className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider mb-1.5 block">Startup Hub</label>
+          <div className="flex flex-wrap gap-1.5">
+            {HUB_LABELS.map(h => (
+              <button
+                key={h}
+                onClick={() => setFilters(prev => ({ ...prev, startupHub: prev.startupHub === h ? null : h }))}
+                className={`px-3 py-1.5 text-xs font-bold rounded-full border transition-all ${
+                  filters.startupHub === h
+                    ? 'bg-brand text-white border-brand'
+                    : 'bg-white/5 text-neutral-400 border-white/5'
+                }`}
+              >
+                {h}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Sponsorship */}
         <div>
           <label className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider mb-1.5 block">Visa Sponsorship</label>
@@ -325,8 +399,8 @@ export function MobileFilterButton({
 }: FilterBarProps) {
   const [showMobileSheet, setShowMobileSheet] = useState(false);
 
-  const hasActiveFilters = filters.industry || filters.accelerator || filters.types.length > 0 || filters.modes.length > 0 || filters.region || filters.seniority || filters.sponsorship;
-  const activeCount = [filters.industry, filters.accelerator, filters.region, filters.seniority, filters.sponsorship, filters.types[0], filters.modes[0]].filter(Boolean).length;
+  const hasActiveFilters = filters.industry || filters.accelerator || filters.types.length > 0 || filters.modes.length > 0 || filters.region || filters.seniority || filters.sponsorship || filters.companyStage || filters.startupHub;
+  const activeCount = [filters.industry, filters.accelerator, filters.region, filters.seniority, filters.sponsorship, filters.types[0], filters.modes[0], filters.companyStage, filters.startupHub].filter(Boolean).length;
 
   return (
     <>
@@ -354,10 +428,10 @@ export function MobileFilterButton({
 }
 
 export const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, industries = [] }) => {
-  const hasActiveFilters = filters.industry || filters.accelerator || filters.types.length > 0 || filters.modes.length > 0 || filters.region || filters.seniority || filters.sponsorship;
+  const hasActiveFilters = filters.industry || filters.accelerator || filters.types.length > 0 || filters.modes.length > 0 || filters.region || filters.seniority || filters.sponsorship || filters.companyStage || filters.startupHub;
 
   const clearFilters = () => {
-    setFilters(prev => ({ ...prev, types: [], modes: [], industry: null, accelerator: null, region: null, seniority: null, sponsorship: null }));
+    setFilters(prev => ({ ...prev, types: [], modes: [], industry: null, accelerator: null, region: null, seniority: null, sponsorship: null, companyStage: null, startupHub: null }));
   };
 
   return (
@@ -405,6 +479,20 @@ export const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, indus
           options={BACKERS}
           onChange={(val) => setFilters(prev => ({ ...prev, accelerator: val }))}
           allLabel="All Accelerators & Funds"
+        />
+        <StyledDropdown
+          label="Company Stage"
+          value={filters.companyStage}
+          options={FUNDING_ROUNDS}
+          onChange={(val) => setFilters(prev => ({ ...prev, companyStage: val }))}
+          allLabel="All Stages"
+        />
+        <StyledDropdown
+          label="Startup Hub"
+          value={filters.startupHub}
+          options={HUB_LABELS}
+          onChange={(val) => setFilters(prev => ({ ...prev, startupHub: val }))}
+          allLabel="All Hubs"
         />
         <button
           onClick={() => setFilters(prev => ({ ...prev, sponsorship: prev.sponsorship ? null : true }))}

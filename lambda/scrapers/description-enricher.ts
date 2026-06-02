@@ -7,6 +7,7 @@
  */
 
 import { getSupabase } from './supabase'
+import { extractSalaryFromBody } from './salary'
 import type { JobData } from './types'
 
 const JINA_CONCURRENCY = 3
@@ -95,6 +96,23 @@ export function isExpiredPage(desc: string): boolean {
   // Scan the whole description (capped at 5KB upstream) — expired notices may
   // appear anywhere, including as buttons near the bottom of the page.
   return EXPIRED_PATTERNS.some(p => p.test(desc))
+}
+
+/**
+ * Pull a structured funding round (Pre-Seed, Seed, Series A…G, IPO) out of a
+ * job description. Used to populate funding_round for the Company Stage filter.
+ * Returns the first match (most prominent mention is typically in the company
+ * blurb at the top); null when nothing matches.
+ */
+export function extractFundingRound(desc: string): string | null {
+  const m = desc.match(/\b(pre-?seed|seed(?:\s+(?:round|stage|funded))?|series\s+([a-h])|ipo)\b/i)
+  if (!m) return null
+  const raw = m[1].toLowerCase()
+  if (raw.startsWith('series')) return `Series ${m[2].toUpperCase()}`
+  if (raw === 'pre-seed' || raw === 'preseed') return 'Pre-Seed'
+  if (raw.startsWith('seed')) return 'Seed'
+  if (raw === 'ipo') return 'IPO'
+  return null
 }
 
 /**
@@ -225,6 +243,20 @@ export async function enrichDescriptions(jobs: JobData[]): Promise<{ fetched: nu
       const extracted = extractBackers(desc)
       if (extracted.length > 0) {
         job.backers = Array.from(new Set([...(job.backers ?? []), ...extracted]))
+      }
+      // Structured round for the Company Stage filter — don't overwrite if
+      // the scraper already set one (AI labs do so authoritatively from AI_LABS).
+      if (!job.funding_round) {
+        const round = extractFundingRound(desc)
+        if (round) job.funding_round = round
+      }
+      // Salary — only fill when the scraper didn't manage to. Most job bodies
+      // include a pay range somewhere, but ranges are also where false positives
+      // live (equity numbers, funding amounts), so the scraper's own
+      // extraction wins when present.
+      if (!job.compensation || job.compensation === 'Not specified') {
+        const salary = extractSalaryFromBody(desc)
+        if (salary) job.compensation = salary
       }
       fetched++
     } else {

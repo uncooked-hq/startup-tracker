@@ -28,6 +28,7 @@ export interface TrackerRoleRow {
   role_description: string | null
   offers_sponsorship: boolean | null
   funding_details: string | null
+  funding_round: string | null
   backers: string[] | null
   posting_date: string | null
   closing_date: string | null

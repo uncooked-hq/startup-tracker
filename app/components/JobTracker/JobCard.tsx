@@ -38,7 +38,7 @@ export const JobCard: React.FC<JobCardProps> = ({ job, onClick, saved, onToggleS
         <div className="flex gap-3 md:gap-4 items-center min-w-0">
           <div className="flex-shrink-0 flex items-center justify-center w-10 h-10 md:w-14 md:h-14 text-2xl bg-[#141414] rounded-xl md:rounded-2xl border border-white/5 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500 ease-out shadow-inner text-white font-bold">
             <div className="flex justify-center items-center rounded-md overflow-hidden">
-              <CompanyLogo name={job.company} industry={job.industry} domain={job.companyDomain} />
+              <CompanyLogo name={job.company} industry={job.industry} domain={job.companyDomain} sources={job.sources} />
             </div>
           </div>
           <div className="flex flex-col justify-center min-w-0">

@@ -28,11 +28,23 @@ const DOMAIN_OVERRIDES: Record<string, string> = {
   'runway': 'runwayml.com',
   'stability': 'stability.ai',
   'stability ai': 'stability.ai',
+  // Mainstream companies whose guessed domain is owned by someone else:
+  // figma.ai is unrelated; handshake.com is Shopify's wholesale brand.
+  'figma': 'figma.com',
+  'handshake': 'joinhandshake.com',
 };
 
-// Order of TLDs to try when no override + no DB-supplied domain.
-// .ai first because most "wrong logo" cases were AI-flavored startups on .ai domains.
-const TLD_CASCADE = ['ai', 'com', 'io', 'co'];
+// Order of TLDs to try when we can't derive a real domain and there's no
+// override. .com first because the tracker is mostly mainstream startups —
+// guessing .ai first was matching unrelated .ai domains (e.g. figma.ai).
+const TLD_CASCADE = ['com', 'ai', 'io', 'co'];
+
+// Subdomain labels that prefix a company's own careers/ATS host but aren't part
+// of the brand. Stripped so we can compare the brand root to the company name.
+const GENERIC_SUBDOMAINS = new Set([
+  'www', 'jobs', 'job', 'careers', 'career', 'apply', 'boards', 'board',
+  'job-boards', 'talent', 'hire', 'hiring', 'work', 'app', 'my', 'en',
+]);
 
 function getColorFromName(name: string): string {
   let hash = 0;
@@ -50,11 +62,65 @@ function getInitials(name: string): string {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
-function buildCandidateDomains(name: string, explicitDomain: string | null | undefined): string[] {
+/**
+ * Reduce a URL to its brand domain (e.g. "careers.figma.com/jobs" → "figma.com")
+ * and return that domain plus its brand root label ("figma"). Strips generic
+ * subdomain prefixes so an ATS/careers host still exposes the real brand label.
+ * Returns null for unparseable input.
+ */
+function brandDomainFromUrl(url: string): { domain: string; root: string } | null {
+  let host: string
+  try {
+    host = new URL(url).hostname.toLowerCase()
+  } catch {
+    return null
+  }
+  const labels = host.split('.').filter(Boolean)
+  // Drop leading generic labels (www, jobs, careers, …) until we hit the brand.
+  while (labels.length > 2 && GENERIC_SUBDOMAINS.has(labels[0])) labels.shift()
+  if (labels.length < 2) return null
+  return { domain: labels.join('.'), root: labels[0] }
+}
+
+/**
+ * Trust a URL-derived domain only when its brand root matches the company name.
+ * This lets a company's own apply link ("notion.so") win, while rejecting
+ * aggregator/ATS hosts (a job on "jobs.accel.com" whose company is "Acme" — root
+ * "accel" ≠ "acme" — falls through instead of showing the VC's logo).
+ */
+function domainFromSources(
+  companySlug: string,
+  sources: { application_url?: string | null; source_url?: string | null }[] | undefined,
+): string | null {
+  if (!sources || companySlug.length < 2) return null
+  for (const s of sources) {
+    for (const url of [s.application_url, s.source_url]) {
+      if (!url) continue
+      const brand = brandDomainFromUrl(url)
+      if (!brand) continue
+      const { domain, root } = brand
+      const matches =
+        root === companySlug ||
+        (root.length >= 4 && companySlug.includes(root)) ||
+        (companySlug.length >= 4 && root.includes(companySlug))
+      if (matches) return domain
+    }
+  }
+  return null
+}
+
+function buildCandidateDomains(
+  name: string,
+  explicitDomain: string | null | undefined,
+  sources?: { application_url?: string | null; source_url?: string | null }[],
+): string[] {
   if (explicitDomain) return [explicitDomain]
   const key = name.trim().toLowerCase()
   if (DOMAIN_OVERRIDES[key]) return [DOMAIN_OVERRIDES[key]]
   const slug = key.replace(/[^a-z0-9]/g, '')
+  // Prefer a real domain pulled from the company's own apply/source URL.
+  const derived = domainFromSources(slug, sources)
+  if (derived) return [derived]
   return TLD_CASCADE.map(tld => `${slug}.${tld}`)
 }
 
@@ -66,12 +132,17 @@ export default function CompanyLogo({
   name,
   industry,
   domain,
+  sources,
 }: {
   name: string;
   industry?: string | null;
   domain?: string | null;
+  sources?: { application_url?: string | null; source_url?: string | null }[];
 }) {
-  const candidates = useMemo(() => buildCandidateDomains(name, domain), [name, domain]);
+  const candidates = useMemo(
+    () => buildCandidateDomains(name, domain, sources),
+    [name, domain, sources],
+  );
   // Index into the candidate list — bumps forward when a try fails.
   const [tryIdx, setTryIdx] = useState(0);
   const bgColor = getColorFromName(name);

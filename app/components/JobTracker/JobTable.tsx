@@ -83,7 +83,7 @@ export const JobTable: React.FC<JobTableProps> = ({ jobs, onJobClick, sortConfig
               >
                 <td className="px-2 lg:px-4 py-3 lg:py-4">
                   <div className="flex justify-center items-center rounded-md overflow-hidden">
-                    <CompanyLogo name={job.company} industry={job.industry} domain={job.companyDomain} />
+                    <CompanyLogo name={job.company} industry={job.industry} domain={job.companyDomain} sources={job.sources} />
                   </div>
                 </td>
                 {/* Role — always visible. On mobile, shows company + location inline below */}

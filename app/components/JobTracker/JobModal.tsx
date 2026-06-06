@@ -51,7 +51,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, onClose, saved, onToggl
           <div className="flex gap-3 md:gap-4 items-center min-w-0 flex-1">
             <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 md:w-16 md:h-16 text-3xl bg-white/5 rounded-xl md:rounded-2xl border border-white/5 font-bold">
               <div className="flex justify-center items-center rounded-md overflow-hidden">
-                <CompanyLogo name={job.company} industry={job.industry} domain={job.companyDomain} />
+                <CompanyLogo name={job.company} industry={job.industry} domain={job.companyDomain} sources={job.sources} />
               </div>
             </div>
             <div className="min-w-0 flex-1">

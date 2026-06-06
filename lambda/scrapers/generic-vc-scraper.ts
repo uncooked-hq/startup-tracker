@@ -1,6 +1,7 @@
 import { BaseScraper } from './base-scraper'
 import type { ScraperResult, JobData } from './types'
 import { classifyIndustry } from './classify'
+import { isAtsLeak } from './ats'
 
 export class GenericVCScraper extends BaseScraper {
   name: string
@@ -368,6 +369,15 @@ export class GenericVCScraper extends BaseScraper {
 
         // Skip if not a valid job
         if (!this.isValidJob(title, company, fullLink)) {
+          continue
+        }
+
+        // Skip parent-ATS leaks: Getro groups a portfolio company's feed with
+        // its parent corp's enterprise ATS, so e.g. koch.avature.net roles get
+        // mislabelled under "Sentient Energy". Drop when the apply URL's ATS
+        // tenant clearly doesn't match the company name.
+        if (isAtsLeak(company, fullLink)) {
+          console.log(`[${this.name}]   skip ATS leak: "${company}" <- ${fullLink.split('?')[0]}`)
           continue
         }
 

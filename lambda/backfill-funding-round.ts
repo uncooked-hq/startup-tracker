@@ -1,9 +1,11 @@
 /**
- * One-off: backfill funding_round on active tracker_roles by parsing
- * funding_details + role_description.
+ * One-off: backfill funding_round on active tracker_roles from the STRUCTURED
+ * funding_details only (e.g. "$30B Series G · Founded 2021").
  *
- * Mirrors the regex used by description-enricher.extractFundingRound() so
- * future scrapes stay consistent.
+ * Deliberately does NOT read role_description — scanning free text for stage
+ * words produced wrong/random rounds (e.g. a Series D company tagged "Seed"),
+ * which is exactly the data cleanup-bad-stages.ts removes. Stage now comes only
+ * from authoritative structured sources.
  *
  * Run with: npx tsx lambda/backfill-funding-round.ts
  */
@@ -43,7 +45,7 @@ async function main() {
     // (no extractable round → stayed NULL) kept re-appearing forever.
     const { data, error } = await sb
       .from('tracker_roles')
-      .select('id, funding_details, role_description')
+      .select('id, funding_details')
       .eq('is_active', true)
       .is('funding_round', null)
       .order('id', { ascending: true })
@@ -53,8 +55,10 @@ async function main() {
 
     const updates: Array<{ id: string; round: string }> = []
     for (const row of data) {
-      const text = `${row.funding_details ?? ''} ${row.role_description ?? ''}`
-      const round = extractRound(text)
+      // Only trust the structured funding_details ("·"-separated) — never the
+      // free-text role_description.
+      const details = String(row.funding_details ?? '')
+      const round = details.includes(' · ') ? extractRound(details) : null
       scanned++
       if (round) updates.push({ id: row.id, round })
     }

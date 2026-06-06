@@ -98,22 +98,81 @@ export function isExpiredPage(desc: string): boolean {
   return EXPIRED_PATTERNS.some(p => p.test(desc))
 }
 
-/**
- * Pull a structured funding round (Pre-Seed, Seed, Series A…G, IPO) out of a
- * job description. Used to populate funding_round for the Company Stage filter.
- * Returns the first match (most prominent mention is typically in the company
- * blurb at the top); null when nothing matches.
- */
-export function extractFundingRound(desc: string): string | null {
-  const m = desc.match(/\b(pre-?seed|seed(?:\s+(?:round|stage|funded))?|series\s+([a-h])|ipo)\b/i)
-  if (!m) return null
-  const raw = m[1].toLowerCase()
-  if (raw.startsWith('series')) return `Series ${m[2].toUpperCase()}`
-  if (raw === 'pre-seed' || raw === 'preseed') return 'Pre-Seed'
-  if (raw.startsWith('seed')) return 'Seed'
-  if (raw === 'ipo') return 'IPO'
-  return null
+export type Liveness = 'live' | 'dead' | 'unknown'
+
+const LIVENESS_TIMEOUT_MS = 15000
+// Bound concurrent direct fetches — callers (prune, enricher) fan out via
+// Promise.all, so without this a single batch could open hundreds of sockets.
+const livenessSem = createSemaphore(12)
+
+/** Does a URL path look like a specific job posting (vs a listing/board root)? */
+function looksLikeJobDetail(pathname: string): boolean {
+  return /\/(jobs?|positions?|postings?|job-?detail|vacancies)\/[^/]+/i.test(pathname) ||
+         /\/j\/[^/]+/i.test(pathname) ||      // Workable: /company/j/CODE/
+         /\d{5,}/.test(pathname)              // long numeric job id
 }
+
+/**
+ * Direct-fetch liveness check for a posting URL. Catches dead jobs that Jina
+ * masks: a removed posting often 404s (Jina still returns cached content) or
+ * 200-redirects from /jobs/{id} to the board/careers root.
+ *
+ *  - 'dead'    → 404/410, redirect to a not-found page, or a job-detail URL that
+ *                collapsed to a listing root. Safe to deactivate.
+ *  - 'unknown' → blocked / rate-limited / server error / timeout. Inconclusive —
+ *                callers must NOT deactivate on this alone (avoids killing
+ *                bot-blocked but live postings).
+ *  - 'live'    → 2xx that still resolves to a specific posting.
+ */
+export async function checkUrlLiveness(url: string): Promise<Liveness> {
+  return livenessSem(async () => {
+    try {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), LIVENESS_TIMEOUT_MS)
+      let res: Response
+      try {
+        res = await fetch(url, {
+          redirect: 'follow',
+          signal: controller.signal,
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+          },
+        })
+      } finally {
+        clearTimeout(timer)
+      }
+
+      if (res.status === 404 || res.status === 410) return 'dead'
+      // Blocked / throttled / server error → inconclusive, never deactivate on this.
+      if (res.status === 401 || res.status === 403 || res.status === 406 || res.status === 429 || res.status >= 500) {
+        return 'unknown'
+      }
+      if (res.status >= 200 && res.status < 300) {
+        try {
+          const orig = new URL(url)
+          const fin = new URL(res.url)
+          if (/not[-_]?found/i.test(fin.pathname)) return 'dead'
+          // Job-detail URL that landed on a listing/board root → posting is gone.
+          if (looksLikeJobDetail(orig.pathname) && !looksLikeJobDetail(fin.pathname)) return 'dead'
+        } catch {
+          // fall through — treat as live
+        }
+        return 'live'
+      }
+      return 'unknown'
+    } catch {
+      return 'unknown' // network error / timeout — inconclusive
+    }
+  })
+}
+
+// NOTE: funding stage is deliberately NOT inferred from the job description.
+// Scanning free text for "seed" / "series X" produced wrong, random stages
+// (e.g. Ashby — a Series D company — got "Seed" from "…from seed stage to IPO"
+// in its copy). funding_round/funding_details now come ONLY from authoritative
+// structured sources (AI-labs `meta`, TopStartups/Seedcamp structured fields).
+// Leave stage blank rather than guess.
 
 /**
  * Pull confirmed backer names out of a job description.
@@ -150,11 +209,10 @@ export function extractBackers(desc: string): string[] {
 }
 
 /**
- * Extract sponsorship and funding info from a job description.
+ * Detect visa-sponsorship intent from a job description. (Funding/stage is NOT
+ * extracted from descriptions — see the note above extractBackers.)
  */
-function extractMetadata(desc: string): { sponsorship: boolean | null; funding: string | null } {
-  const lower = desc.toLowerCase()
-
+function extractMetadata(desc: string): { sponsorship: boolean | null } {
   // Sponsorship detection
   let sponsorship: boolean | null = null
   const sponsorshipPositive = /\b(visa\s+sponsor|sponsor\s+visa|sponsorship\s+(?:available|provided|offered|possible)|we\s+(?:sponsor|offer\s+sponsorship|provide\s+sponsorship)|will\s+sponsor|immigration\s+sponsor|work\s+(?:permit|authorization)\s+(?:sponsor|assist|support))/i
@@ -166,36 +224,15 @@ function extractMetadata(desc: string): { sponsorship: boolean | null; funding: 
     sponsorship = true
   }
 
-  // Funding detection — look for Series A/B/C/D, Seed, Pre-seed, raised $X
-  let funding: string | null = null
-  const fundingPatterns = [
-    /\b(series\s+[a-f])\b/i,
-    /\b(pre-?seed|seed\s+(?:round|stage|funded))\b/i,
-    /\b(raised\s+\$[\d,.]+\s*[mb](?:illion)?)/i,
-    /\b(\$[\d,.]+\s*[mb](?:illion)?\s+(?:in\s+)?(?:funding|raised|series))/i,
-    /\b(funded\s+by\s+[A-Z][\w\s,&]+)/i,
-  ]
-  for (const pattern of fundingPatterns) {
-    const match = desc.match(pattern)
-    if (match) {
-      funding = match[1].trim()
-      // Capitalize nicely
-      if (/series/i.test(funding)) {
-        funding = funding.replace(/series\s+([a-f])/i, (_, l) => `Series ${l.toUpperCase()}`)
-      }
-      break
-    }
-  }
-
-  return { sponsorship, funding }
+  return { sponsorship }
 }
 
 /**
  * Enriches a batch of jobs with role descriptions, skipping any that already
  * have one cached in tracker_role_sources.
  */
-export async function enrichDescriptions(jobs: JobData[]): Promise<{ fetched: number; skipped: number; failed: number; expired: number }> {
-  if (jobs.length === 0) return { fetched: 0, skipped: 0, failed: 0, expired: 0 }
+export async function enrichDescriptions(jobs: JobData[]): Promise<{ fetched: number; skipped: number; failed: number; expired: number; dead: number }> {
+  if (jobs.length === 0) return { fetched: 0, skipped: 0, failed: 0, expired: 0, dead: 0 }
 
   const supabase = getSupabase()
 
@@ -216,9 +253,19 @@ export async function enrichDescriptions(jobs: JobData[]): Promise<{ fetched: nu
   let failed = 0
   let skipped = 0
   let expired = 0
+  let dead = 0
 
   await Promise.all(jobs.map(async job => {
     if (haveDesc.has(job.application_link)) {
+      // Description is cached, so we skip the (expensive) Jina re-fetch — but the
+      // posting itself may have died since it was first enriched. A cheap direct
+      // liveness check closes that hole: if the apply URL is now dead, flag the
+      // job inactive so the upsert skips it (and the prune deactivates the row).
+      if (await checkUrlLiveness(job.application_link) === 'dead') {
+        job.is_active = false
+        dead++
+        return
+      }
       skipped++
       return
     }
@@ -232,23 +279,15 @@ export async function enrichDescriptions(jobs: JobData[]): Promise<{ fetched: nu
         return
       }
       job.role_description = desc
-      // Extract sponsorship and funding info from description
-      const { sponsorship, funding } = extractMetadata(desc)
+      // Visa sponsorship from description (funding stage is intentionally NOT
+      // inferred here — it was producing wrong stages from incidental mentions).
+      const { sponsorship } = extractMetadata(desc)
       if (sponsorship != null) job.offers_sponsorship = sponsorship
-      // Don't overwrite funding_details if the scraper already set a richer value
-      // (e.g. "$30B Series G · Founded 2021" from AI labs or TopStartups)
-      if (funding && !job.funding_details) job.funding_details = funding
       // Merge any "funded by X" backers from the description with whatever the
       // scraper already declared (e.g. VC portfolio scrapers set the fund itself).
       const extracted = extractBackers(desc)
       if (extracted.length > 0) {
         job.backers = Array.from(new Set([...(job.backers ?? []), ...extracted]))
-      }
-      // Structured round for the Company Stage filter — don't overwrite if
-      // the scraper already set one (AI labs do so authoritatively from AI_LABS).
-      if (!job.funding_round) {
-        const round = extractFundingRound(desc)
-        if (round) job.funding_round = round
       }
       // Salary — only fill when the scraper didn't manage to. Most job bodies
       // include a pay range somewhere, but ranges are also where false positives
@@ -264,5 +303,5 @@ export async function enrichDescriptions(jobs: JobData[]): Promise<{ fetched: nu
     }
   }))
 
-  return { fetched, skipped, failed, expired }
+  return { fetched, skipped, failed, expired, dead }
 }

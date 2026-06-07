@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Search, Loader2, ArrowUp, HelpCircle, RotateCcw } from 'lucide-react';
+import { Search, Loader2, ArrowUp, HelpCircle, RotateCcw, List, MapPin, ArrowLeft } from 'lucide-react';
 import { Job, FilterState } from '@/lib/types';
 import { FilterBar, MobileFilterButton } from './FilterBar';
 import { JobModal } from './JobModal';
 import { JobTable } from './JobTable';
+import { CityDirectory } from './CityDirectory';
 import { useAuth } from '../AuthProvider';
 import { LoginModal } from '../LoginModal';
 import { useSavedJobs } from '../../hooks/useSavedJobs';
@@ -24,6 +25,12 @@ export const JobTracker: React.FC = () => {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const { isSaved, toggleSave, count: savedCount } = useSavedJobs();
   const [showSavedOnly, setShowSavedOnly] = useState(false);
+
+  // Tracker view mode: the normal table, or "City View" — a directory of
+  // startup-hub cities that drills into one city's jobs (the city is just the
+  // startupHub filter, locked). Drill-in is derived from filters so there's no
+  // second source of truth to keep in sync with the FilterBar dropdown.
+  const [viewMode, setViewMode] = useState<'table' | 'city'>('table');
 
   const [filters, setFilters] = useState<FilterState>({
     search: '',
@@ -71,6 +78,34 @@ export const JobTracker: React.FC = () => {
     industry: null, accelerator: null, region: null, seniority: null, sponsorship: null,
     companyStage: null, startupHub: null,
   });
+
+  // City View states. Directory = grid of cities; drill-in = one city's jobs.
+  const showCityDirectory = viewMode === 'city' && !filters.startupHub;
+  const cityDrillIn = viewMode === 'city' && !!filters.startupHub;
+  // Selecting a city just locks the startupHub filter — the existing fetch +
+  // the startupHubKey reset effect handle the refetch and scroll reset.
+  const enterCity = (label: string) => setFilters(prev => ({ ...prev, startupHub: label }));
+  const exitCity = () => setFilters(prev => ({ ...prev, startupHub: null }));
+
+  // Small reusable view-mode toggle (table | city), mirrors the removed pattern.
+  const ViewToggle = (
+    <div className="flex items-center gap-1 p-1 bg-white/5 rounded-full border border-white/5">
+      <button
+        onClick={() => setViewMode('table')}
+        title="Table view"
+        className={`p-2 rounded-full transition-all ${viewMode === 'table' ? 'bg-white text-black shadow-lg' : 'text-neutral-500 hover:text-white'}`}
+      >
+        <List size={16} />
+      </button>
+      <button
+        onClick={() => setViewMode('city')}
+        title="City view"
+        className={`p-2 rounded-full transition-all ${viewMode === 'city' ? 'bg-white text-black shadow-lg' : 'text-neutral-500 hover:text-white'}`}
+      >
+        <MapPin size={16} />
+      </button>
+    </div>
+  );
 
   const [sortConfig, setSortConfig] = useState<{ key: keyof Job; direction: 'asc' | 'desc' } | null>(null);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -362,9 +397,13 @@ export const JobTracker: React.FC = () => {
              </div>
 
              <div className="hidden md:flex items-center gap-3">
-                <div className="text-neutral-600 text-xs font-medium tracking-wide uppercase border border-white/5 px-3 py-1.5 rounded-full bg-white/5">
-                  {filteredAndSortedJobs.length} of {pagination.total} jobs
-                </div>
+                {!showCityDirectory && (
+                  <div className="text-neutral-600 text-xs font-medium tracking-wide uppercase border border-white/5 px-3 py-1.5 rounded-full bg-white/5">
+                    {filteredAndSortedJobs.length} of {pagination.total} jobs
+                  </div>
+                )}
+
+                {ViewToggle}
 
                 <div className="h-6 w-px bg-white/10 mx-1"></div>
                 {isLoggedIn ? (
@@ -401,8 +440,9 @@ export const JobTracker: React.FC = () => {
              </div>
           </div>
 
-          {/* Search — hidden on mobile (moved to bottom bar), visible on desktop */}
-          <div id="tour-search" className="relative w-full group hidden md:block">
+          {/* Search — hidden on mobile (moved to bottom bar), visible on desktop.
+              Hidden entirely in the city directory (search doesn't apply to a city grid). */}
+          <div id="tour-search" className={`relative w-full group ${showCityDirectory ? 'hidden' : 'hidden md:block'}`}>
             <div className="absolute inset-0 bg-brand/20 blur-xl opacity-0 group-focus-within:opacity-20 transition-opacity duration-500 rounded-2xl" />
             <span className="absolute left-5 top-1/2 -translate-y-1/2 pointer-events-none z-10 flex items-center justify-center">
               {searching ? (
@@ -430,14 +470,34 @@ export const JobTracker: React.FC = () => {
             )}
           </div>
 
-          {/* Filters — desktop only. Mobile uses MobileFilterButton in bottom bar */}
-          <div id="tour-filters" className="hidden sm:block">
+          {/* Filters — desktop only. Mobile uses MobileFilterButton in bottom bar.
+              Hidden in the city directory; shown again on drill-in (city locked). */}
+          <div id="tour-filters" className={showCityDirectory ? 'hidden' : 'hidden sm:block'}>
             <FilterBar filters={filters} setFilters={setFilters} industries={availableIndustries} />
           </div>
         </div>
       </div>
 
       <div id="job-results" className="flex flex-col gap-10 mt-6">
+
+        {/* Mobile view-mode toggle (the desktop toggle lives in the header cluster) */}
+        <div className="md:hidden flex justify-center">
+          {ViewToggle}
+        </div>
+
+        {showCityDirectory ? (
+          <CityDirectory onSelectCity={enterCity} />
+        ) : (
+        <>
+        {cityDrillIn && (
+          <button
+            onClick={exitCity}
+            className="self-start flex items-center gap-2 px-4 py-2 text-sm font-bold text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-full transition-all"
+          >
+            <ArrowLeft size={16} /> All cities
+            <span className="text-neutral-600 font-medium">· {filters.startupHub} ({pagination.total})</span>
+          </button>
+        )}
 
         {/* Content View */}
         {loading ? (
@@ -496,6 +556,8 @@ export const JobTracker: React.FC = () => {
               clear all filters
             </button>
           </div>
+        )}
+        </>
         )}
       </div>
 

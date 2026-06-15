@@ -2,6 +2,7 @@ import { BaseScraper } from './base-scraper'
 import type { ScraperResult, JobData } from './types'
 import { classifyIndustry } from './classify'
 import { isAtsLeak } from './ats'
+import { canonicalCompanyName } from './company-aliases'
 
 export class GenericVCScraper extends BaseScraper {
   name: string
@@ -366,6 +367,10 @@ export class GenericVCScraper extends BaseScraper {
         if (categoryPatterns.test(title.trim())) {
           continue
         }
+
+        // Collapse known aliases (e.g. "Anysphere" → "Cursor") to the canonical
+        // name so a VC-board listing merges with the company's own ATS board.
+        company = canonicalCompanyName(company)
 
         // Skip if not a valid job
         if (!this.isValidJob(title, company, fullLink)) {

@@ -10,6 +10,7 @@ import { StartupJobsJinaScraper } from './startupjobs-jina-scraper'
 import { TopStartupsScraper } from './topstartups-scraper'
 import { BuiltInScraper } from './builtin-scraper'
 import { buildAllAILabScrapers } from './ai-labs'
+import { AshbyScraper } from './ashby-scraper'
 
 export const scrapers: Scraper[] = [
   // Dedicated scrapers (no browser needed)
@@ -29,6 +30,10 @@ export const scrapers: Scraper[] = [
   // AI Labs (ATS APIs: Greenhouse / Ashby / Workable)
   ...buildAllAILabScrapers(),
 
+  // Individual company ATS boards (Ashby posting API — no browser needed)
+  new AshbyScraper('Replit', 'replit'),
+  new AshbyScraper('Cursor', 'cursor'), // Anysphere (Cursor's parent) — its own Ashby board
+
   // VC Portfolio Job Boards (Puppeteer-based — crawls company subpages for full coverage)
   new GenericVCScraper('Antler', 'https://careers.antler.co/jobs', 'Antler'),
   new GenericVCScraper('Accel', 'https://jobs.accel.com/jobs', 'Accel'),
@@ -46,6 +51,9 @@ export const scrapers: Scraper[] = [
   new GenericVCScraper('GV', 'https://jobs.gv.com/jobs', 'GV'),
   new GenericVCScraper('Lerer Hippeau', 'https://jobs.lererhippeau.com/jobs', 'Lerer Hippeau'),
   new GenericVCScraper('Earlybird', 'https://jobs.earlybird.com/jobs', 'Earlybird'),
+  new GenericVCScraper('Thrive Capital', 'https://jobs.thrivecap.com/jobs', 'Thrive Capital'),
+  new GenericVCScraper('Georgian', 'https://careers.georgian.io/jobs', 'Georgian'),
+  new GenericVCScraper('Entrepreneur First', 'https://jobs.joinef.com/jobs', 'Entrepreneur First'),
 ]
 
 export function getScraperByName(name: string): Scraper | undefined {

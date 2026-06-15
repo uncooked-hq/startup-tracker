@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { MapPin, Loader2, ChevronRight } from 'lucide-react';
+import { Loader2, ChevronRight } from 'lucide-react';
 import type { HubRegion } from '@/lib/startup-hubs';
+import { cityImage } from '@/lib/city-images';
 
 interface CityCount {
   label: string;
@@ -15,19 +16,31 @@ const REGION_ORDER: { key: HubRegion; title: string }[] = [
   { key: 'USA', title: 'United States' },
 ];
 
-const CityCard: React.FC<{ label: string; count: number; onClick: () => void }> = ({ label, count, onClick }) => (
+const CityCard: React.FC<{ label: string; count: number; image?: string; onClick: () => void }> = ({ label, count, image, onClick }) => (
   <button
     onClick={onClick}
-    className="group relative flex items-center gap-4 p-4 md:p-6 text-left transition-all duration-500 border rounded-2xl md:rounded-[2rem] bg-[#0A0A0A] border-white/5 hover:border-brand/20 hover:bg-[#101010] hover:-translate-y-1 cursor-pointer"
+    className="group relative flex flex-col justify-end overflow-hidden min-h-[128px] md:min-h-[152px] p-4 md:p-5 text-left transition-all duration-500 border rounded-2xl md:rounded-[2rem] bg-[#0A0A0A] border-white/5 hover:border-brand/30 hover:-translate-y-1 cursor-pointer"
   >
-    <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 md:w-14 md:h-14 bg-[#141414] rounded-xl md:rounded-2xl border border-white/5 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500 ease-out shadow-inner">
-      <MapPin size={20} className="text-neutral-400 group-hover:text-brand transition-colors" />
+    {image && (
+      // Landmark backdrop — plain <img> (Wikimedia CDN, not in next/image allowlist).
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={image}
+        alt=""
+        loading="lazy"
+        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+      />
+    )}
+    {/* Dark scrim — keeps the label readable over any photo (and over the
+        plain dark card when an image is missing). */}
+    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
+    <div className="relative flex items-end justify-between gap-2">
+      <div className="min-w-0">
+        <h3 className="text-lg md:text-2xl font-bold text-white tracking-tight truncate drop-shadow-md group-hover:text-brand transition-colors">{label}</h3>
+        <p className="text-xs md:text-sm text-neutral-200 font-medium drop-shadow">{count.toLocaleString()} active {count === 1 ? 'role' : 'roles'}</p>
+      </div>
+      <ChevronRight size={20} className="flex-shrink-0 text-white/70 group-hover:text-brand group-hover:translate-x-0.5 transition-all drop-shadow" />
     </div>
-    <div className="flex flex-col min-w-0">
-      <h3 className="text-base md:text-xl font-bold text-white group-hover:text-brand transition-colors tracking-tight truncate">{label}</h3>
-      <p className="text-xs md:text-sm text-neutral-500 font-medium">{count.toLocaleString()} active {count === 1 ? 'role' : 'roles'}</p>
-    </div>
-    <ChevronRight size={18} className="ml-auto flex-shrink-0 text-neutral-700 group-hover:text-brand group-hover:translate-x-0.5 transition-all" />
   </button>
 );
 
@@ -87,7 +100,7 @@ export const CityDirectory: React.FC<{ onSelectCity: (label: string) => void }> 
             <h3 className="text-xs font-bold tracking-widest uppercase text-neutral-500 px-1">{title}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {group.map(c => (
-                <CityCard key={c.label} label={c.label} count={c.count} onClick={() => onSelectCity(c.label)} />
+                <CityCard key={c.label} label={c.label} count={c.count} image={cityImage(c.label)} onClick={() => onSelectCity(c.label)} />
               ))}
             </div>
           </div>

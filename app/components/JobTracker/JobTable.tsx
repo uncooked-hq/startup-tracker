@@ -32,7 +32,10 @@ interface JobTableProps {
 //   'hidden sm:table-cell' = hidden on mobile, visible on tablet+
 //   'hidden lg:table-cell' = hidden on mobile+tablet, visible on desktop only
 const headers: { key: keyof Job; label: string; hideClass: string; widthClass: string }[] = [
-  { key: 'role', label: 'Role', hideClass: '', widthClass: 'lg:w-[20%]' },
+  // No fixed width — Role is the flexible column that absorbs leftover table
+  // width, so the other fixed columns (incl. the narrow logo column) keep their
+  // sizes instead of the slack ballooning the logo column.
+  { key: 'role', label: 'Role', hideClass: '', widthClass: '' },
   { key: 'company', label: 'Company', hideClass: 'hidden sm:table-cell', widthClass: 'w-[20%] lg:w-[14%]' },
   { key: 'location', label: 'Location', hideClass: 'hidden sm:table-cell', widthClass: 'w-[18%] lg:w-[14%]' },
   { key: 'industry', label: 'Industry', hideClass: 'hidden lg:table-cell', widthClass: 'w-[10%]' },
@@ -52,9 +55,7 @@ export const JobTable: React.FC<JobTableProps> = ({ jobs, onJobClick, sortConfig
         <table className="w-full text-left border-collapse table-fixed">
           <thead>
             <tr className="border-b border-white/5 bg-white/[0.02]">
-              <th className="px-2 lg:px-4 py-3 lg:py-5 text-xs font-bold text-neutral-500 uppercase tracking-wider w-12 lg:w-14 text-center">
-                Logo
-              </th>
+              <th className="px-2 py-3 lg:py-5 w-12 lg:w-14" aria-label="Logo"></th>
               {headers.map((header) => (
                 <th
                   key={header.key}
@@ -81,7 +82,7 @@ export const JobTable: React.FC<JobTableProps> = ({ jobs, onJobClick, sortConfig
                 onClick={() => onJobClick(job)}
                 className="group hover:bg-white/5 transition-colors cursor-pointer"
               >
-                <td className="px-2 lg:px-4 py-3 lg:py-4">
+                <td className="px-2 py-3 lg:py-4">
                   <div className="flex justify-center items-center rounded-md overflow-hidden">
                     <CompanyLogo name={job.company} industry={job.industry} domain={job.companyDomain} sources={job.sources} />
                   </div>

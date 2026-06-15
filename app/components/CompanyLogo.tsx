@@ -167,7 +167,14 @@ export default function CompanyLogo({
       alt={`${name} logo`}
       width={40}
       height={40}
-      className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-contain"
+      // Soft white radial glow behind the logo (not a hard white chip): a bright
+      // centre keeps dark/black logos legible on the dark UI, fading to transparent
+      // at the edges so there's no stark square.
+      className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-contain p-1"
+      style={{
+        background:
+          'radial-gradient(closest-side, rgba(255,255,255,0.9), rgba(255,255,255,0.4) 58%, rgba(255,255,255,0) 80%)',
+      }}
       unoptimized
       onError={() => setTryIdx(i => i + 1)}
       onLoad={(e) => {

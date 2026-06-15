@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { FilterState } from '@/lib/types';
 import { ChevronDown, X, SlidersHorizontal, Check } from 'lucide-react';
 import { ALL_BACKERS } from '@/lib/backers';
-import { HUB_LABELS, FUNDING_ROUNDS } from '@/lib/startup-hubs';
+import { FUNDING_ROUNDS } from '@/lib/startup-hubs';
 
 const BACKERS = ALL_BACKERS;
 const ROLE_TYPES = ['Full-time', 'Internship', 'Contract', 'Part-time'];
@@ -332,26 +332,6 @@ function MobileFilterSheet({
           </div>
         </div>
 
-        {/* Startup Hub */}
-        <div>
-          <label className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider mb-1.5 block">Startup Hub</label>
-          <div className="flex flex-wrap gap-1.5">
-            {HUB_LABELS.map(h => (
-              <button
-                key={h}
-                onClick={() => setFilters(prev => ({ ...prev, startupHub: prev.startupHub === h ? null : h }))}
-                className={`px-3 py-1.5 text-xs font-bold rounded-full border transition-all ${
-                  filters.startupHub === h
-                    ? 'bg-brand text-white border-brand'
-                    : 'bg-white/5 text-neutral-400 border-white/5'
-                }`}
-              >
-                {h}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Sponsorship */}
         <div>
           <label className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider mb-1.5 block">Visa Sponsorship</label>
@@ -486,13 +466,6 @@ export const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, indus
           options={FUNDING_ROUNDS}
           onChange={(val) => setFilters(prev => ({ ...prev, companyStage: val }))}
           allLabel="All Stages"
-        />
-        <StyledDropdown
-          label="Startup Hub"
-          value={filters.startupHub}
-          options={HUB_LABELS}
-          onChange={(val) => setFilters(prev => ({ ...prev, startupHub: val }))}
-          allLabel="All Hubs"
         />
         <button
           onClick={() => setFilters(prev => ({ ...prev, sponsorship: prev.sponsorship ? null : true }))}

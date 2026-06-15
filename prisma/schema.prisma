@@ -134,3 +134,25 @@ model TrackerRoleSource {
   @@map("tracker_role_sources")
 }
 
+// User-submitted reports about a listing. Reports are reviewed before any action
+// is taken — they NEVER auto-deactivate a listing. A listing is only deactivated
+// when a report is approved via the moderation CLI (lambda/moderate-reports.ts).
+// No Prisma relation to TrackerRole on purpose (reports are queried by id only,
+// and should survive even if the underlying role row changes).
+model TrackerReport {
+  id               String   @id @default(uuid())
+  tracker_role_id  String
+  company_name     String?  // snapshot at report time, for moderation context
+  role_title       String?  // snapshot at report time
+  reason           String   // 'expired' | 'compliance'
+  explanation      String
+  reporter_contact String?  // logged-in user's contact if available, else null
+  status           String   @default("pending") // 'pending' | 'approved' | 'rejected'
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  @@index([status])
+  @@index([tracker_role_id])
+  @@map("tracker_reports")
+}
+

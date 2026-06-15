@@ -1,14 +1,17 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Job } from '@/lib/types';
-import { X, MapPin, Briefcase, DollarSign, Building, ExternalLink } from 'lucide-react';
+import { X, MapPin, Briefcase, DollarSign, Building, ExternalLink, Flag } from 'lucide-react';
 import CompanyLogo from '../CompanyLogo';
 import { BookmarkButton } from '../BookmarkButton';
+import { ReportModal } from './ReportModal';
 
 interface JobModalProps {
   job: Job | null;
   onClose: () => void;
   saved?: boolean;
   onToggleSave?: () => void;
+  /** Called when a logged-out user clicks the bookmark (prompts sign-in). */
+  onRequestLogin?: () => void;
 }
 
 // Helper to format salary range
@@ -25,7 +28,9 @@ const formatSalary = (job: Job): string => {
   return 'Not specified';
 };
 
-export const JobModal: React.FC<JobModalProps> = ({ job, onClose, saved, onToggleSave }) => {
+export const JobModal: React.FC<JobModalProps> = ({ job, onClose, saved, onToggleSave, onRequestLogin }) => {
+  const [reportOpen, setReportOpen] = useState(false);
+
   // Prevent scrolling when modal is open
   useEffect(() => {
     if (job) {
@@ -41,6 +46,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, onClose, saved, onToggl
   if (!job) return null;
 
   return (
+    <>
     <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in-up">
       {/* Overlay click to close */}
       <div className="absolute inset-0" onClick={onClose} />
@@ -68,8 +74,11 @@ export const JobModal: React.FC<JobModalProps> = ({ job, onClose, saved, onToggl
             </div>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
-            {onToggleSave && (
+            {onToggleSave ? (
               <BookmarkButton saved={!!saved} onClick={() => onToggleSave()} size={20} />
+            ) : (
+              // Logged out: keep the bookmark visible but prompt sign-in on click/hover.
+              <BookmarkButton saved={false} onClick={() => onRequestLogin?.()} size={20} tooltip="sign in to save" />
             )}
             <button
               onClick={onClose}
@@ -187,25 +196,35 @@ export const JobModal: React.FC<JobModalProps> = ({ job, onClose, saved, onToggl
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 md:p-6 border-t border-white/5 bg-[#141414] flex justify-end gap-3 sticky bottom-0">
+        <div className="p-4 md:p-6 border-t border-white/5 bg-[#141414] flex items-center justify-between gap-3 sticky bottom-0">
           <button
-            onClick={onClose}
-            className="px-5 md:px-6 py-2.5 md:py-3 text-sm font-medium text-white transition-colors hover:bg-white/5 rounded-full"
+            onClick={() => setReportOpen(true)}
+            className="flex items-center gap-1.5 px-2 py-2 text-xs font-medium text-neutral-500 hover:text-red-400 transition-colors"
           >
-            close
+            <Flag size={14} /> report
           </button>
-          {job.sources && job.sources.length > 0 && job.sources[0].application_url && (
-            <a
-              href={job.sources[0].application_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-6 md:px-8 py-2.5 md:py-3 text-sm font-medium text-white transition-transform hover:scale-105 active:scale-95 bg-brand rounded-full shadow-lg shadow-brand/20 flex items-center gap-2"
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="px-5 md:px-6 py-2.5 md:py-3 text-sm font-medium text-white transition-colors hover:bg-white/5 rounded-full"
             >
-              apply now <ExternalLink size={16} />
-            </a>
-          )}
+              close
+            </button>
+            {job.sources && job.sources.length > 0 && job.sources[0].application_url && (
+              <a
+                href={job.sources[0].application_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-6 md:px-8 py-2.5 md:py-3 text-sm font-medium text-white transition-transform hover:scale-105 active:scale-95 bg-brand rounded-full shadow-lg shadow-brand/20 flex items-center gap-2"
+              >
+                apply now <ExternalLink size={16} />
+              </a>
+            )}
+          </div>
         </div>
       </div>
     </div>
+    {reportOpen && <ReportModal job={job} onClose={() => setReportOpen(false)} />}
+    </>
   );
 };

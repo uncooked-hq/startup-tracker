@@ -88,7 +88,9 @@ export const JobTracker: React.FC = () => {
   const exitCity = () => setFilters(prev => ({ ...prev, startupHub: null }));
 
   // Small reusable view-mode toggle (table | city), mirrors the removed pattern.
-  const ViewToggle = (
+  // cityBtnId is only attached to the desktop instance so the onboarding tour can
+  // target it (avoids a duplicate id across the desktop + mobile renders).
+  const renderViewToggle = (cityBtnId?: string) => (
     <div className="flex items-center gap-1 p-1 bg-white/5 rounded-full border border-white/5">
       <button
         onClick={() => setViewMode('table')}
@@ -98,6 +100,7 @@ export const JobTracker: React.FC = () => {
         <List size={16} />
       </button>
       <button
+        id={cityBtnId}
         onClick={() => setViewMode('city')}
         title="City view"
         className={`p-2 rounded-full transition-all ${viewMode === 'city' ? 'bg-white text-black shadow-lg' : 'text-neutral-500 hover:text-white'}`}
@@ -403,7 +406,7 @@ export const JobTracker: React.FC = () => {
                   </div>
                 )}
 
-                {ViewToggle}
+                {renderViewToggle('tour-city-view')}
 
                 <div className="h-6 w-px bg-white/10 mx-1"></div>
                 {isLoggedIn ? (
@@ -482,7 +485,7 @@ export const JobTracker: React.FC = () => {
 
         {/* Mobile view-mode toggle (the desktop toggle lives in the header cluster) */}
         <div className="md:hidden flex justify-center">
-          {ViewToggle}
+          {renderViewToggle()}
         </div>
 
         {showCityDirectory ? (
@@ -566,6 +569,7 @@ export const JobTracker: React.FC = () => {
         onClose={() => setSelectedJob(null)}
         saved={isLoggedIn && selectedJob ? isSaved(selectedJob.id) : false}
         onToggleSave={isLoggedIn && selectedJob ? () => toggleSave(selectedJob.id) : undefined}
+        onRequestLogin={() => setShowLoginModal(true)}
       />
       {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
 

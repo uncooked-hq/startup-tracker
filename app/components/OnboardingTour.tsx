@@ -34,6 +34,12 @@ const STEPS: Step[] = [
     body: 'narrow down by region, accelerator, level, job type, work mode, or industry. all filters can stack.',
   },
   {
+    targetId: 'tour-city-view',
+    placement: 'bottom',
+    title: 'city view',
+    body: 'switch to City View to browse roles by startup hub — pick a city to see every open role there, on a map of landmarks.',
+  },
+  {
     targetId: 'tour-bookmark',
     placement: 'left',
     title: 'bookmark jobs',
@@ -70,6 +76,13 @@ function calculatePosition(targetId: string | null, placement: Step['placement']
   }
 
   const rect = el.getBoundingClientRect();
+  // Target exists but is hidden (display:none → all-zero rect), e.g. the search
+  // and filter bars while City View is open. Center the card instead of pinning
+  // it to the top-left corner with a zero-size spotlight.
+  if (rect.width === 0 && rect.height === 0) {
+    return { top: vh / 2 - 150, left: vw / 2 - POPOVER_WIDTH / 2, spotlight: null };
+  }
+
   const spotlight = {
     top: rect.top - PADDING,
     left: rect.left - PADDING,

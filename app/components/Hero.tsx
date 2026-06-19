@@ -13,6 +13,9 @@ const POPULAR_SOURCES = [
   { name: 'Seedcamp', domain: 'seedcamp.com' },
   { name: 'Atomico', domain: 'atomico.com' },
   { name: 'Kleiner Perkins', domain: 'kpcb.com' },
+  { name: 'Thrive Capital', domain: 'thrivecap.com' },
+  { name: 'Georgian', domain: 'georgian.io' },
+  { name: 'Entrepreneur First', domain: 'joinef.com' },
 ];
 
 function SourceItem({ source, onHover }: { source: typeof POPULAR_SOURCES[number]; onHover: (hovering: boolean) => void }) {

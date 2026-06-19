@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Job } from '@/lib/types';
-import { X, MapPin, Briefcase, DollarSign, Building, ExternalLink, Flag } from 'lucide-react';
+import { X, MapPin, Briefcase, DollarSign, Building, ExternalLink, Flag, Share2 } from 'lucide-react';
 import CompanyLogo from '../CompanyLogo';
 import { BookmarkButton } from '../BookmarkButton';
 import { ReportModal } from './ReportModal';
@@ -30,6 +30,23 @@ const formatSalary = (job: Job): string => {
 
 export const JobModal: React.FC<JobModalProps> = ({ job, onClose, saved, onToggleSave, onRequestLogin }) => {
   const [reportOpen, setReportOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // Share a link to THIS job on our tracker (deep-links to /tracker?job=<id>),
+  // not the external apply URL. Native share sheet on mobile, copy elsewhere.
+  const handleShare = async () => {
+    if (!job) return;
+    const url = `${window.location.origin}/tracker?job=${job.id}`;
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try { await navigator.share({ title: `${job.role} · ${job.company}`, url }); } catch { /* cancelled */ }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* clipboard unavailable */ }
+  };
 
   // Prevent scrolling when modal is open
   useEffect(() => {
@@ -75,16 +92,28 @@ export const JobModal: React.FC<JobModalProps> = ({ job, onClose, saved, onToggl
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
             {onToggleSave ? (
-              <BookmarkButton saved={!!saved} onClick={() => onToggleSave()} size={20} />
+              <BookmarkButton saved={!!saved} onClick={() => onToggleSave()} size={18} tooltipBelow className="p-2 hover:bg-white/10 rounded-full" />
             ) : (
               // Logged out: keep the bookmark visible but prompt sign-in on click/hover.
-              <BookmarkButton saved={false} onClick={() => onRequestLogin?.()} size={20} tooltip="sign in to save" />
+              <BookmarkButton saved={false} onClick={() => onRequestLogin?.()} size={18} tooltip="sign in to save" tooltipBelow className="p-2 hover:bg-white/10 rounded-full" />
             )}
+            {/* Report — gated on login like the bookmark; tooltip below to avoid clipping at the modal top. */}
+            <div className="relative group/rp">
+              <button
+                onClick={onToggleSave ? () => setReportOpen(true) : () => onRequestLogin?.()}
+                className="p-2 text-neutral-500 transition-colors hover:text-red-400 hover:bg-white/10 rounded-full"
+              >
+                <Flag size={18} />
+              </button>
+              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 px-2.5 py-1 text-[10px] font-bold text-white bg-[#1a1a1a] border border-white/10 rounded-lg opacity-0 group-hover/rp:opacity-100 transition-opacity whitespace-nowrap shadow-lg z-20">
+                {onToggleSave ? 'report' : 'sign in to report'}
+              </div>
+            </div>
             <button
               onClick={onClose}
               className="p-2 text-neutral-500 transition-colors hover:text-white hover:bg-white/10 rounded-full"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
           </div>
         </div>
@@ -197,11 +226,12 @@ export const JobModal: React.FC<JobModalProps> = ({ job, onClose, saved, onToggl
 
         {/* Footer Actions */}
         <div className="p-4 md:p-6 border-t border-white/5 bg-[#141414] flex items-center justify-between gap-3 sticky bottom-0">
+          {/* Share — links to this job on our tracker (deep-link), not the apply page. */}
           <button
-            onClick={() => setReportOpen(true)}
-            className="flex items-center gap-1.5 px-2 py-2 text-xs font-medium text-neutral-500 hover:text-red-400 transition-colors"
+            onClick={handleShare}
+            className="flex items-center gap-1.5 px-2 py-2 text-xs font-medium text-neutral-500 hover:text-white transition-colors"
           >
-            <Flag size={14} /> report
+            <Share2 size={14} /> {copied ? 'Link copied!' : 'Share Job'}
           </button>
           <div className="flex items-center gap-3">
             <button

@@ -112,7 +112,32 @@ export const JobTracker: React.FC = () => {
 
   const [sortConfig, setSortConfig] = useState<{ key: keyof Job; direction: 'asc' | 'desc' } | null>(null);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-  
+
+  // Deep-link: open a specific job when arriving at /tracker?job=<id> (shared link).
+  // Capture the id once at first render so the URL-sync effect (which clears the
+  // param when no job is open) can't race it away — and fetch by id so it works
+  // even if the job isn't on the first page.
+  const [deepLinkId] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('job') : null
+  );
+  useEffect(() => {
+    if (!deepLinkId) return;
+    let cancelled = false;
+    fetch(`/api/jobs?id=${encodeURIComponent(deepLinkId)}`)
+      .then(r => r.json())
+      .then(data => { if (!cancelled && data.jobs?.[0]) setSelectedJob(data.jobs[0]); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [deepLinkId]);
+
+  // Keep the URL in sync with the open job so any open job is shareable by URL.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (selectedJob) url.searchParams.set('job', selectedJob.id);
+    else url.searchParams.delete('job');
+    window.history.replaceState(null, '', url.toString());
+  }, [selectedJob]);
+
   // API state
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);       // full-page spinner (initial load only)

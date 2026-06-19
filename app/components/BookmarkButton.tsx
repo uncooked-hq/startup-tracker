@@ -10,9 +10,11 @@ interface BookmarkButtonProps {
   className?: string;
   /** Override the hover label (defaults to save/unsave). */
   tooltip?: string;
+  /** Show the tooltip below the icon instead of above (avoids clipping near a container's top edge). */
+  tooltipBelow?: boolean;
 }
 
-export function BookmarkButton({ saved, onClick, size = 18, className = '', tooltip }: BookmarkButtonProps) {
+export function BookmarkButton({ saved, onClick, size = 18, className = '', tooltip, tooltipBelow = false }: BookmarkButtonProps) {
   return (
     <div className="relative group/bm">
       <button
@@ -30,7 +32,7 @@ export function BookmarkButton({ saved, onClick, size = 18, className = '', tool
           }
         />
       </button>
-      <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1 text-[10px] font-bold text-white bg-[#1a1a1a] border border-white/10 rounded-lg opacity-0 group-hover/bm:opacity-100 transition-opacity whitespace-nowrap shadow-lg">
+      <div className={`pointer-events-none absolute left-1/2 -translate-x-1/2 ${tooltipBelow ? 'top-full mt-2' : 'bottom-full mb-2'} px-2.5 py-1 text-[10px] font-bold text-white bg-[#1a1a1a] border border-white/10 rounded-lg opacity-0 group-hover/bm:opacity-100 transition-opacity whitespace-nowrap shadow-lg z-20`}>
         {tooltip ?? (saved ? 'unsave' : 'save')}
       </div>
     </div>

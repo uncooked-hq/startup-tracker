@@ -16,6 +16,53 @@ const REGION_MAP: Record<string, string[]> = {
   'Remote': ['Remote'],
 }
 
+// Map a TrackerRole (+ its sources) row to the client-facing Job shape.
+function mapRoleToJob(role: TrackerRoleWithSources): Job {
+  return {
+    id: role.id,
+    company: role.company_name,
+    companyDomain: role.company_domain,
+    industry: role.industry,
+    fundingStage: role.funding_stage,
+    role: role.role_title,
+    roleLevel: role.role_level,
+    type: role.role_type,
+    workMode: role.work_mode,
+    location: role.location,
+    salary: role.compensation_text,
+    salaryMin: role.salary_min,
+    salaryMax: role.salary_max,
+    salaryCurrency: role.salary_currency,
+    offersEquity: role.offers_equity,
+    description: role.company_description,
+    roleDescription: role.role_description,
+    offersSponsorship: (role as any).offers_sponsorship ?? null,
+    fundingDetails: (role as any).funding_details ?? null,
+    fundingRound: (role as any).funding_round ?? null,
+    backers: (role as any).backers ?? null,
+    postedAt: role.posting_date ? new Date(role.posting_date) : null,
+    closingDate: role.closing_date ? new Date(role.closing_date) : null,
+    vibeCheck: (role as any).vibe_check || null,
+    skills: (role as any).skills || null,
+    isActive: role.is_active,
+    firstSeenAt: new Date(role.first_seen_at),
+    lastSeenAt: new Date(role.last_seen_at),
+    sources: (role.tracker_role_sources || [])
+      .sort((a, b) => new Date(b.last_seen_at).getTime() - new Date(a.last_seen_at).getTime())
+      .map(source => ({
+        id: source.id,
+        source: source.source,
+        source_role_id: source.source_role_id,
+        source_url: source.source_url,
+        application_url: source.application_url,
+        last_seen_at: new Date(source.last_seen_at),
+        created_at: new Date(source.created_at),
+      })),
+    logo: undefined as string | undefined,
+    requirements: [] as string[],
+  }
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -32,6 +79,26 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = (page - 1) * limit
+
+    // Deep-link / share: fetch a single job by id (it may not be on page 1).
+    const idParam = searchParams.get('id')
+    if (idParam) {
+      const { data, error: idErr } = await supabase
+        .from('tracker_roles')
+        .select(`*, tracker_role_sources (*)`)
+        .eq('id', idParam)
+        .limit(1)
+      if (idErr) throw idErr
+      const single = (data as TrackerRoleWithSources[] || [])
+        .filter(role => (role.tracker_role_sources?.length ?? 0) > 0)
+        .filter(role => !isBlacklistedCompany(role.company_name))
+        .map(mapRoleToJob)
+      return NextResponse.json({
+        jobs: single,
+        pagination: { page: 1, limit: 1, total: single.length, totalPages: 1 },
+        hasMore: false,
+      })
+    }
 
     // Count mode picks per workload:
     //   - 'exact' is a full filtered scan. Only used for filter-only browsing on
@@ -297,68 +364,7 @@ export async function GET(request: Request) {
     const jobs: Job[] = (trackerRoles as TrackerRoleWithSources[] || [])
       .filter(role => (role.tracker_role_sources?.length ?? 0) > 0)
       .filter(role => !isBlacklistedCompany(role.company_name))
-      .map(role => ({
-      id: role.id,
-      // Company info
-      company: role.company_name,
-      companyDomain: role.company_domain,
-      industry: role.industry,
-      fundingStage: role.funding_stage,
-
-      // Role info
-      role: role.role_title,
-      roleLevel: role.role_level,
-      type: role.role_type,
-      workMode: role.work_mode,
-      location: role.location,
-
-      // Compensation
-      salary: role.compensation_text,
-      salaryMin: role.salary_min,
-      salaryMax: role.salary_max,
-      salaryCurrency: role.salary_currency,
-      offersEquity: role.offers_equity,
-
-      // Content
-      description: role.company_description,
-      roleDescription: role.role_description,
-
-      // Sponsorship & funding
-      offersSponsorship: (role as any).offers_sponsorship ?? null,
-      fundingDetails: (role as any).funding_details ?? null,
-      fundingRound: (role as any).funding_round ?? null,
-      backers: (role as any).backers ?? null,
-
-      // Dates
-      postedAt: role.posting_date ? new Date(role.posting_date) : null,
-      closingDate: role.closing_date ? new Date(role.closing_date) : null,
-
-      // Vibe check
-      vibeCheck: (role as any).vibe_check || null,
-      skills: (role as any).skills || null,
-
-      // Status
-      isActive: role.is_active,
-      firstSeenAt: new Date(role.first_seen_at),
-      lastSeenAt: new Date(role.last_seen_at),
-
-      // Sources - sort by last_seen_at descending
-      sources: (role.tracker_role_sources || [])
-        .sort((a, b) => new Date(b.last_seen_at).getTime() - new Date(a.last_seen_at).getTime())
-        .map(source => ({
-          id: source.id,
-          source: source.source,
-          source_role_id: source.source_role_id,
-          source_url: source.source_url,
-          application_url: source.application_url,
-          last_seen_at: new Date(source.last_seen_at),
-          created_at: new Date(source.created_at),
-        })),
-
-      // Legacy fields for backward compatibility
-      logo: undefined as string | undefined,
-      requirements: [] as string[],
-    }))
+      .map(mapRoleToJob)
 
     return NextResponse.json({
       jobs: jobs || [],

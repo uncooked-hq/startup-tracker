@@ -55,7 +55,7 @@ export const JobTable: React.FC<JobTableProps> = ({ jobs, onJobClick, sortConfig
         <table className="w-full text-left border-collapse table-fixed">
           <thead>
             <tr className="border-b border-white/5 bg-white/[0.02]">
-              <th className="px-2 py-3 lg:py-5 w-12 lg:w-14" aria-label="Logo"></th>
+              <th className="px-2 py-3 lg:py-5 w-16 lg:w-20" aria-label="Logo"></th>
               {headers.map((header) => (
                 <th
                   key={header.key}

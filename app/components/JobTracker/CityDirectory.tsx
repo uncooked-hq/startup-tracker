@@ -19,7 +19,7 @@ const REGION_ORDER: { key: HubRegion; title: string }[] = [
 const CityCard: React.FC<{ label: string; count: number; image?: string; onClick: () => void }> = ({ label, count, image, onClick }) => (
   <button
     onClick={onClick}
-    className="group relative flex flex-col justify-end overflow-hidden min-h-[128px] md:min-h-[152px] p-4 md:p-5 text-left transition-all duration-500 border rounded-2xl md:rounded-[2rem] bg-[#0A0A0A] border-white/5 hover:border-brand/30 hover:-translate-y-1 cursor-pointer"
+    className="group relative flex flex-col justify-end overflow-hidden min-h-[180px] md:min-h-[230px] p-4 md:p-5 text-left transition-all duration-500 border rounded-2xl md:rounded-[2rem] bg-[#0A0A0A] border-white/5 hover:border-brand/30 hover:-translate-y-1 cursor-pointer"
   >
     {image && (
       // Landmark backdrop — plain <img> (Wikimedia CDN, not in next/image allowlist).
